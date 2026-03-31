@@ -39,7 +39,7 @@ exports.getStats = async (req, res) => {
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
-};
+}; 
 
 // Liste tous les utilisateurs
 exports.getAllUsers = async (req, res) => {
