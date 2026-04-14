@@ -2,6 +2,13 @@ node_modules/
 <<<<<<< Updated upstream
 .env 
 
+<<<<<<< HEAD
 =======
 .env
 >>>>>>> Stashed changes
+=======
+build/
+.dart_tool/
+.idea/
+*.iml
+>>>>>>> f50b07af04789b9c5f6bc3b651e691e148c11adc

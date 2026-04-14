@@ -16,8 +16,10 @@ class CoursModel {
     required this.id,
     required this.nom,
     required this.enseignantId,
+    
     required this.salle,
     required this.latitude,
+    $
     required this.longitude,
     required this.rayonMetres,
     required this.heureDebut,
