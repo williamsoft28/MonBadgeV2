@@ -1,6 +1,6 @@
 class Constants {
   // URL de base de l'API
-  static const String baseUrl = 'http://192.168.137.20:3000/api';
+  static const String baseUrl = 'http://192.168.11.117:3000/api';
   
   // Clés SharedPreferences
   static const String tokenKey = 'token';

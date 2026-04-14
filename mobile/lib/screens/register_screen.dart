@@ -1,20 +1,23 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../utils/helpers.dart';
-import 'dashboard_screen.dart';
-import 'register_screen.dart';
+import 'login_screen.dart';
 
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen>
+class _RegisterScreenState extends State<RegisterScreen>
     with SingleTickerProviderStateMixin {
+  final _nomController = TextEditingController();
+  final _prenomController = TextEditingController();
   final _matriculeController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  String _role = 'etudiant';
   bool _isLoading = false;
   bool _obscurePassword = true;
   late AnimationController _animController;
@@ -41,35 +44,50 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   void dispose() {
     _animController.dispose();
+    _nomController.dispose();
+    _prenomController.dispose();
     _matriculeController.dispose();
+    _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
 
-  Future<void> _login() async {
-    if (_matriculeController.text.isEmpty || _passwordController.text.isEmpty) {
+  Future<void> _register() async {
+    if (_nomController.text.isEmpty ||
+        _prenomController.text.isEmpty ||
+        _matriculeController.text.isEmpty ||
+        _emailController.text.isEmpty ||
+        _passwordController.text.isEmpty) {
       Helpers.showError(context, 'Veuillez remplir tous les champs');
       return;
     }
 
     setState(() => _isLoading = true);
 
-    final result = await AuthService.login(
-      _matriculeController.text.trim(),
-      _passwordController.text,
-    );
+    final response = await ApiService.post('/auth/register', {
+      'nom': _nomController.text.trim(),
+      'prenom': _prenomController.text.trim(),
+      'matricule': _matriculeController.text.trim(),
+      'email': _emailController.text.trim(),
+      'mot_de_passe': _passwordController.text,
+      'role': _role,
+    });
 
     setState(() => _isLoading = false);
 
-    if (result['success']) {
+    if (response != null && response['message'] != null) {
       if (mounted) {
+        Helpers.showSuccess(context, 'Compte créé avec succès !');
+        await Future.delayed(const Duration(seconds: 1));
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
         );
       }
     } else {
-      if (mounted) Helpers.showError(context, result['message']);
+      if (mounted) {
+        Helpers.showError(context, response?['error'] ?? 'Erreur inscription');
+      }
     }
   }
 
@@ -89,7 +107,7 @@ class _LoginScreenState extends State<LoginScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF6C63FF).withOpacity(0.3),
+                    const Color(0xFF00D4AA).withOpacity(0.3),
                     Colors.transparent,
                   ],
                 ),
@@ -106,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    const Color(0xFF00D4AA).withOpacity(0.2),
+                    const Color(0xFF6C63FF).withOpacity(0.2),
                     Colors.transparent,
                   ],
                 ),
@@ -123,43 +141,43 @@ class _LoginScreenState extends State<LoginScreen>
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 40),
                       Center(
                         child: Column(
                           children: [
                             Container(
-                              width: 80,
-                              height: 80,
+                              width: 70,
+                              height: 70,
                               decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(20),
                                 gradient: const LinearGradient(
                                   colors: [
-                                    Color(0xFF6C63FF),
                                     Color(0xFF00D4AA),
+                                    Color(0xFF6C63FF),
                                   ],
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                 ),
                               ),
                               child: const Icon(
-                                Icons.fingerprint,
+                                Icons.person_add_outlined,
                                 color: Colors.white,
-                                size: 42,
+                                size: 34,
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
                             const Text(
-                              'MonBadge',
+                              'Créer un compte',
                               style: TextStyle(
                                 color: Colors.white,
-                                fontSize: 32,
+                                fontSize: 28,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: -0.5,
                               ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
-                              'Badgez en un geste, partout et toujours',
+                              'Rejoignez MonBadge dès maintenant',
                               style: TextStyle(
                                 color: Colors.white.withOpacity(0.5),
                                 fontSize: 14,
@@ -168,7 +186,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ],
                         ),
                       ),
-                      const SizedBox(height: 60),
+                      const SizedBox(height: 40),
                       Container(
                         padding: const EdgeInsets.all(28),
                         decoration: BoxDecoration(
@@ -181,31 +199,38 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Connexion',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 22,
-                                fontWeight: FontWeight.w600,
-                              ),
+                            _buildLabel('Nom'),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _nomController,
+                              hint: 'Traoré',
+                              icon: Icons.person_outline,
                             ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Entrez vos identifiants pour continuer',
-                              style: TextStyle(
-                                color: Colors.white.withOpacity(0.4),
-                                fontSize: 13,
-                              ),
+                            const SizedBox(height: 16),
+                            _buildLabel('Prénom'),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _prenomController,
+                              hint: 'Mamadou',
+                              icon: Icons.person_outline,
                             ),
-                            const SizedBox(height: 28),
-                            _buildLabel('Numéro matricule'),
+                            const SizedBox(height: 16),
+                            _buildLabel('Matricule'),
                             const SizedBox(height: 8),
                             _buildTextField(
                               controller: _matriculeController,
                               hint: 'ETU-2024-001',
                               icon: Icons.badge_outlined,
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 16),
+                            _buildLabel('Email'),
+                            const SizedBox(height: 8),
+                            _buildTextField(
+                              controller: _emailController,
+                              hint: 'email@exemple.com',
+                              icon: Icons.email_outlined,
+                            ),
+                            const SizedBox(height: 16),
                             _buildLabel('Mot de passe'),
                             const SizedBox(height: 8),
                             _buildTextField(
@@ -214,12 +239,50 @@ class _LoginScreenState extends State<LoginScreen>
                               icon: Icons.lock_outline,
                               isPassword: true,
                             ),
-                            const SizedBox(height: 32),
+                            const SizedBox(height: 16),
+                            _buildLabel('Rôle'),
+                            const SizedBox(height: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF0A0A0F),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                    color: Colors.white.withOpacity(0.08)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _role,
+                                  dropdownColor: const Color(0xFF1A1A2E),
+                                  style: const TextStyle(color: Colors.white),
+                                  icon: Icon(Icons.keyboard_arrow_down,
+                                      color: Colors.white.withOpacity(0.3)),
+                                  isExpanded: true,
+                                  items: const [
+                                    DropdownMenuItem(
+                                      value: 'etudiant',
+                                      child: Text('Étudiant'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'enseignant',
+                                      child: Text('Enseignant'),
+                                    ),
+                                    DropdownMenuItem(
+                                      value: 'admin',
+                                      child: Text('Administrateur'),
+                                    ),
+                                  ],
+                                  onChanged: (value) =>
+                                      setState(() => _role = value!),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 28),
                             SizedBox(
                               width: double.infinity,
                               height: 56,
                               child: ElevatedButton(
-                                onPressed: _isLoading ? null : _login,
+                                onPressed: _isLoading ? null : _register,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
                                   shadowColor: Colors.transparent,
@@ -232,8 +295,8 @@ class _LoginScreenState extends State<LoginScreen>
                                   decoration: BoxDecoration(
                                     gradient: const LinearGradient(
                                       colors: [
-                                        Color(0xFF6C63FF),
                                         Color(0xFF00D4AA),
+                                        Color(0xFF6C63FF),
                                       ],
                                     ),
                                     borderRadius: BorderRadius.circular(16),
@@ -249,7 +312,7 @@ class _LoginScreenState extends State<LoginScreen>
                                             ),
                                           )
                                         : const Text(
-                                            'Se connecter',
+                                            'Créer mon compte',
                                             style: TextStyle(
                                               color: Colors.white,
                                               fontSize: 16,
@@ -260,44 +323,34 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen()),
-                                ),
-                                child: RichText(
-                                  text: TextSpan(
-                                    text: 'Pas encore de compte ? ',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.4),
-                                      fontSize: 14,
-                                    ),
-                                    children: const [
-                                      TextSpan(
-                                        text: 'S\'inscrire',
-                                        style: TextStyle(
-                                          color: Color(0xFF6C63FF),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 30),
+                      const SizedBox(height: 24),
                       Center(
-                        child: Text(
-                          'MonBadge v1.0 — Université',
-                          style: TextStyle(
-                            color: Colors.white.withOpacity(0.2),
-                            fontSize: 12,
+                        child: GestureDetector(
+                          onTap: () => Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const LoginScreen()),
+                          ),
+                          child: RichText(
+                            text: TextSpan(
+                              text: 'Déjà un compte ? ',
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.4),
+                                fontSize: 14,
+                              ),
+                              children: const [
+                                TextSpan(
+                                  text: 'Se connecter',
+                                  style: TextStyle(
+                                    color: Color(0xFF6C63FF),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
                       ),
