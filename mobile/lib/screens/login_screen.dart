@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../utils/helpers.dart';
 import 'dashboard_screen.dart';
-import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -15,8 +14,11 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _matriculeController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _codeAdminController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
+  bool _obscureCode = true;
+  bool _showCodeAdmin = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -43,6 +45,7 @@ class _LoginScreenState extends State<LoginScreen>
     _animController.dispose();
     _matriculeController.dispose();
     _passwordController.dispose();
+    _codeAdminController.dispose();
     super.dispose();
   }
 
@@ -57,9 +60,17 @@ class _LoginScreenState extends State<LoginScreen>
     final result = await AuthService.login(
       _matriculeController.text.trim(),
       _passwordController.text,
+      codeAdmin: _showCodeAdmin ? _codeAdminController.text : null,
     );
 
     setState(() => _isLoading = false);
+
+    // Si admin mais code non fourni
+    if (result['needAdminCode'] == true) {
+      setState(() => _showCodeAdmin = true);
+      Helpers.showError(context, 'Entrez votre code administrateur');
+      return;
+    }
 
     if (result['success']) {
       if (mounted) {
@@ -214,6 +225,46 @@ class _LoginScreenState extends State<LoginScreen>
                               icon: Icons.lock_outline,
                               isPassword: true,
                             ),
+
+                            // Champ code admin (visible seulement si admin)
+                            if (_showCodeAdmin) ...[
+                              const SizedBox(height: 20),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF6C63FF).withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(
+                                    color: const Color(0xFF6C63FF).withOpacity(0.3),
+                                  ),
+                                ),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.admin_panel_settings,
+                                        color: Color(0xFF6C63FF), size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      'Code administrateur requis',
+                                      style: TextStyle(
+                                        color: const Color(0xFF6C63FF).withOpacity(0.8),
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              _buildLabel('Code administrateur'),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: _codeAdminController,
+                                hint: '••••••••••••',
+                                icon: Icons.vpn_key_outlined,
+                                isPassword: true,
+                                isAdminCode: true,
+                              ),
+                            ],
+
                             const SizedBox(height: 32),
                             SizedBox(
                               width: double.infinity,
@@ -260,34 +311,6 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
-                            Center(
-                              child: GestureDetector(
-                                onTap: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const RegisterScreen()),
-                                ),
-                                child: RichText(
-                                  text: TextSpan(
-                                    text: 'Pas encore de compte ? ',
-                                    style: TextStyle(
-                                      color: Colors.white.withOpacity(0.4),
-                                      fontSize: 14,
-                                    ),
-                                    children: const [
-                                      TextSpan(
-                                        text: 'S\'inscrire',
-                                        style: TextStyle(
-                                          color: Color(0xFF6C63FF),
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
                           ],
                         ),
                       ),
@@ -329,33 +352,48 @@ class _LoginScreenState extends State<LoginScreen>
     required String hint,
     required IconData icon,
     bool isPassword = false,
+    bool isAdminCode = false,
   }) {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF0A0A0F),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.08)),
+        border: Border.all(
+          color: isAdminCode
+              ? const Color(0xFF6C63FF).withOpacity(0.3)
+              : Colors.white.withOpacity(0.08),
+        ),
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword ? _obscurePassword : false,
+        obscureText: isPassword
+            ? (isAdminCode ? _obscureCode : _obscurePassword)
+            : false,
         style: const TextStyle(color: Colors.white, fontSize: 15),
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: TextStyle(color: Colors.white.withOpacity(0.25)),
-          prefixIcon:
-              Icon(icon, color: Colors.white.withOpacity(0.3), size: 20),
+          prefixIcon: Icon(icon,
+              color: isAdminCode
+                  ? const Color(0xFF6C63FF).withOpacity(0.6)
+                  : Colors.white.withOpacity(0.3),
+              size: 20),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    _obscurePassword
+                    (isAdminCode ? _obscureCode : _obscurePassword)
                         ? Icons.visibility_off
                         : Icons.visibility,
                     color: Colors.white.withOpacity(0.3),
                     size: 20,
                   ),
-                  onPressed: () =>
-                      setState(() => _obscurePassword = !_obscurePassword),
+                  onPressed: () => setState(() {
+                    if (isAdminCode) {
+                      _obscureCode = !_obscureCode;
+                    } else {
+                      _obscurePassword = !_obscurePassword;
+                    }
+                  }),
                 )
               : null,
           border: InputBorder.none,

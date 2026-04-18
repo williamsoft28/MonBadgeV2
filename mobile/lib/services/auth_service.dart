@@ -7,21 +7,35 @@ import 'api_service.dart';
 class AuthService {
   // Connexion
   static Future<Map<String, dynamic>> login(
-      String matricule, String motDePasse) async {
-    final response = await ApiService.post('/auth/login', {
+      String matricule, String motDePasse, {String? codeAdmin}) async {
+    final body = {
       'matricule': matricule,
       'mot_de_passe': motDePasse,
-    });
+    };
 
-    if (response != null && response['token'] != null) {
+    if (codeAdmin != null && codeAdmin.isNotEmpty) {
+      body['code_admin'] = codeAdmin;
+    }
+
+    final response = await ApiService.post('/auth/login', body);
+
+    if (response == null) {
+      return {'success': false, 'message': 'Erreur de connexion au serveur'};
+    }
+
+    // Admin sans code
+    if (response['error'] == '❌ Code administrateur requis') {
+      return {'success': false, 'needAdminCode': true, 'message': response['error']};
+    }
+
+    if (response['token'] != null) {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setString(Constants.tokenKey, response['token']);
-      await prefs.setString(
-          Constants.userKey, jsonEncode(response['user']));
+      await prefs.setString(Constants.userKey, jsonEncode(response['user']));
       return {'success': true, 'user': response['user']};
     }
 
-    return {'success': false, 'message': response?['error'] ?? 'Erreur connexion'};
+    return {'success': false, 'message': response['error'] ?? 'Erreur connexion'};
   }
 
   // Déconnexion

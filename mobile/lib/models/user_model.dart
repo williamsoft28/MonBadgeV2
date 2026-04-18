@@ -6,6 +6,8 @@ class UserModel {
   final String email;
   final String role;
   final bool biometrieEnregistree;
+  final String? filiere;
+  final String? niveau;
 
   UserModel({
     required this.id,
@@ -15,17 +17,22 @@ class UserModel {
     required this.email,
     required this.role,
     required this.biometrieEnregistree,
+    this.filiere,
+    this.niveau,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
-      id: json['id'],
-      nom: json['nom'],
-      prenom: json['prenom'],
-      matricule: json['matricule'],
-      email: json['email'],
-      role: json['role'],
-      biometrieEnregistree: json['biometrie_enregistree'] == 1,
+      id: json['id'] ?? 0,
+      nom: json['nom'] ?? '',
+      prenom: json['prenom'] ?? '',
+      matricule: json['matricule'] ?? '',
+      email: json['email'] ?? '',
+      role: json['role'] ?? 'etudiant',
+      biometrieEnregistree: json['biometrie_enregistree'] == 1 ||
+                            json['biometrie_enregistree'] == true,
+      filiere: json['filiere'],
+      niveau: json['niveau'],
     );
   }
 
@@ -38,6 +45,8 @@ class UserModel {
       'email': email,
       'role': role,
       'biometrie_enregistree': biometrieEnregistree,
+      'filiere': filiere,
+      'niveau': niveau,
     };
   }
 }

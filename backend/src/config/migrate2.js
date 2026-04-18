@@ -10,7 +10,18 @@ async function migrate2() {
   });
 
   console.log('✅ Connexion MySQL ok, migration 2 en cours...');
-
+// Création compte admin par défaut
+  try {
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash('password', 10);
+    await connection.execute(`
+      INSERT INTO utilisateurs (nom, prenom, matricule, email, mot_de_passe, role)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, ['Admin', 'MonBadge', 'ADMIN-001', 'admin@monbadge.com', hash, 'admin']);
+    console.log('✅ Compte admin créé');
+  } catch (e) {
+    console.log('⚠️ Compte admin existe déjà');
+  }
   // Ajout filiere
   try {
     await connection.execute(`

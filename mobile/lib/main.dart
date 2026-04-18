@@ -25,7 +25,6 @@ class MonBadgeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        fontFamily: 'SF Pro Display',
         colorScheme: ColorScheme.dark(
           primary: const Color(0xFF6C63FF),
           secondary: const Color(0xFF00D4AA),
@@ -64,15 +63,24 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _checkAuth() async {
     await Future.delayed(const Duration(seconds: 2));
-    final isLoggedIn = await AuthService.isLoggedIn();
-    if (mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              isLoggedIn ? const DashboardScreen() : const LoginScreen(),
-        ),
-      );
+    try {
+      final isLoggedIn = await AuthService.isLoggedIn();
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                isLoggedIn ? const DashboardScreen() : const LoginScreen(),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      }
     }
   }
 
