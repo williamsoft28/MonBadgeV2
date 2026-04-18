@@ -3,25 +3,15 @@ require('dotenv').config();
 
 async function migrate2() {
   const connection = await mysql.createConnection({
-    host: process.env.DB_HOST || 'localhost',
-    user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '',
-    database: process.env.DB_NAME || 'monbadge_db',
+    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
+    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
+    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
+    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'monbadge_db',
+    port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT || '3306'),
   });
 
   console.log('✅ Connexion MySQL ok, migration 2 en cours...');
-// Création compte admin par défaut
-  try {
-    const bcrypt = require('bcryptjs');
-    const hash = await bcrypt.hash('password', 10);
-    await connection.execute(`
-      INSERT INTO utilisateurs (nom, prenom, matricule, email, mot_de_passe, role)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, ['Admin', 'MonBadge', 'ADMIN-001', 'admin@monbadge.com', hash, 'admin']);
-    console.log('✅ Compte admin créé');
-  } catch (e) {
-    console.log('⚠️ Compte admin existe déjà');
-  }
+
   // Ajout filiere
   try {
     await connection.execute(`
@@ -58,6 +48,19 @@ async function migrate2() {
     console.log('✅ Table attributions créée');
   } catch (e) {
     console.log('⚠️ Table attributions existe déjà');
+  }
+
+  // Création compte admin par défaut
+  try {
+    const bcrypt = require('bcryptjs');
+    const hash = await bcrypt.hash('password', 10);
+    await connection.execute(`
+      INSERT INTO utilisateurs (nom, prenom, matricule, email, mot_de_passe, role)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `, ['Admin', 'MonBadge', 'ADMIN-001', 'admin@monbadge.com', hash, 'admin']);
+    console.log('✅ Compte admin créé');
+  } catch (e) {
+    console.log('⚠️ Compte admin existe déjà');
   }
 
   await connection.end();
