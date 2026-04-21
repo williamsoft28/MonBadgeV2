@@ -1,13 +1,12 @@
 const mysql = require('mysql2/promise');
-require('dotenv').config();
 
 async function migrate2() {
   const connection = await mysql.createConnection({
-    host: process.env.MYSQLHOST || process.env.DB_HOST || 'localhost',
-    user: process.env.MYSQLUSER || process.env.DB_USER || 'root',
-    password: process.env.MYSQLPASSWORD || process.env.DB_PASSWORD || '',
-    database: process.env.MYSQLDATABASE || process.env.DB_NAME || 'monbadge_db',
-    port: parseInt(process.env.MYSQLPORT || process.env.DB_PORT || '3306'),
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
+    port: parseInt(process.env.DB_PORT || '3306'),
   });
 
   console.log('✅ Connexion MySQL ok, migration 2 en cours...');
