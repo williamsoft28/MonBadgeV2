@@ -1,7 +1,7 @@
 class Constants {
   // URL de base de l'API
   static const String baseUrl =
-      'https://monbadgev2-production.up.railway.app/api';
+      'https://1d53-102-179-137-115.ngrok-free.app/api';
 
   // Clés SharedPreferences
   static const String tokenKey = 'token';

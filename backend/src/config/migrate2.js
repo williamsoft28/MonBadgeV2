@@ -1,17 +1,20 @@
 const mysql = require('mysql2/promise');
 
+if (process.env.NODE_ENV !== 'production') {
+  require('dotenv').config();
+}
+
 async function migrate2() {
   const connection = await mysql.createConnection({
     host: process.env.DB_HOST,
     user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    password: process.env.DB_PASSWORD || '',
     database: process.env.DB_NAME,
     port: parseInt(process.env.DB_PORT || '3306'),
   });
 
   console.log('✅ Connexion MySQL ok, migration 2 en cours...');
 
-  // Ajout filiere
   try {
     await connection.execute(`
       ALTER TABLE utilisateurs ADD COLUMN filiere VARCHAR(100) NULL
@@ -21,7 +24,6 @@ async function migrate2() {
     console.log('⚠️ Colonne filiere existe déjà');
   }
 
-  // Ajout niveau
   try {
     await connection.execute(`
       ALTER TABLE utilisateurs ADD COLUMN niveau VARCHAR(50) NULL
@@ -31,7 +33,6 @@ async function migrate2() {
     console.log('⚠️ Colonne niveau existe déjà');
   }
 
-  // Table attributions
   try {
     await connection.execute(`
       CREATE TABLE IF NOT EXISTS attributions (
@@ -49,7 +50,6 @@ async function migrate2() {
     console.log('⚠️ Table attributions existe déjà');
   }
 
-  // Création compte admin par défaut
   try {
     const bcrypt = require('bcryptjs');
     const hash = await bcrypt.hash('password', 10);
