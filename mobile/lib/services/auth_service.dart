@@ -43,6 +43,7 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(Constants.tokenKey);
     await prefs.remove(Constants.userKey);
+    // On ne supprime pas saved_matricule ici pour permettre la reconnexion biométrique
   }
 
   // Récupérer utilisateur connecté
@@ -57,5 +58,21 @@ class AuthService {
   static Future<bool> isLoggedIn() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(Constants.tokenKey) != null;
+  }
+
+  // --- Fonctions pour la biométrie ---
+  static Future<void> saveCredentials(String matricule) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_matricule', matricule);
+  }
+
+  static Future<String?> getSavedCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString('saved_matricule');
+  }
+
+  static Future<void> clearCredentials() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('saved_matricule');
   }
 }

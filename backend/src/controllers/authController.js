@@ -7,7 +7,9 @@ exports.register = async (req, res) => {
   try {
     const { nom, prenom, matricule, email, mot_de_passe, role, filiere, niveau } = req.body;
 
-    const hash = await bcrypt.hash(mot_de_passe, 10);
+    // Si le rôle est étudiant, le mot de passe devient le matricule
+    const mdpToHash = (role === 'etudiant') ? matricule : mot_de_passe;
+    const hash = await bcrypt.hash(mdpToHash, 10);
 
     await db.execute(
       `INSERT INTO utilisateurs (nom, prenom, matricule, email, mot_de_passe, role, filiere, niveau)
@@ -70,9 +72,27 @@ exports.login = async (req, res) => {
         role: user.role,
         filiere: user.filiere,
         niveau: user.niveau,
+        biometrie_active: user.biometrie_active === 1 || user.biometrie_active === true,
       }
     });
 
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Activer la biométrie
+exports.enableBiometrics = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'User ID manquant' });
+
+    await db.execute(
+      `UPDATE utilisateurs SET biometrie_active = TRUE WHERE id = ?`,
+      [userId]
+    );
+
+    res.json({ success: true, message: '✅ Biométrie activée avec succès' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

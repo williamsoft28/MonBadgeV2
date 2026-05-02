@@ -48,14 +48,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: Colors.white,
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF6C63FF)))
+              child: CircularProgressIndicator(color: Colors.green))
           : SafeArea(
               child: RefreshIndicator(
                 onRefresh: _loadData,
-                color: const Color(0xFF6C63FF),
+                color: Colors.green,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24),
@@ -64,7 +64,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                     children: [
                       _buildHeader(),
                       const SizedBox(height: 28),
-                      _buildStatsGrid(),
+                      _buildStatsWidget(),
                       const SizedBox(height: 28),
                       _buildMenuSection(),
                     ],
@@ -85,15 +85,15 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text(
               'Panel Admin 🛡️',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '${_user?.prenom} ${_user?.nom}',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Colors.green[900],
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
               ),
@@ -106,13 +106,13 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.green.withOpacity(0.05),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withOpacity(0.08)),
+              border: Border.all(color: Colors.green.withOpacity(0.2)),
             ),
             child: Icon(
               Icons.logout,
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.green[800],
               size: 18,
             ),
           ),
@@ -121,14 +121,32 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     );
   }
 
+  Widget _buildStatsWidget() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_stats.isEmpty) {
+      return const Center(child: Text('Aucune statistique disponible.'));
+    }
+
+    return Column(
+      children: [
+        Text('Utilisateurs : ${_stats['users'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
+        Text('Cours : ${_stats['cours'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
+        Text('Présences : ${_stats['presences'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
+      ],
+    );
+  }
+
   Widget _buildStatsGrid() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Vue d\'ensemble',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.green[900],
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -140,14 +158,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               '${_stats['total_etudiants'] ?? 0}',
               'Étudiants',
               Icons.school_outlined,
-              const Color(0xFF6C63FF),
+              Colors.green[600]!,
             ),
             const SizedBox(width: 12),
             _buildStatCard(
               '${_stats['total_cours'] ?? 0}',
               'Cours',
               Icons.book_outlined,
-              const Color(0xFF00D4AA),
+              Colors.green[700]!,
             ),
           ],
         ),
@@ -158,14 +176,14 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               '${_stats['presences_aujourdhui'] ?? 0}',
               'Présences aujourd\'hui',
               Icons.check_circle_outline,
-              const Color(0xFF4CAF50),
+              Colors.green[800]!,
             ),
             const SizedBox(width: 12),
             _buildStatCard(
               '${_stats['taux_presence_aujourdhui'] ?? 0}%',
               'Taux présence',
               Icons.pie_chart_outline,
-              const Color(0xFFFF9800),
+              Colors.orange[700]!,
             ),
           ],
         ),
@@ -200,7 +218,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 11,
               ),
             ),
@@ -214,10 +232,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Gestion',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.green[900],
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -227,7 +245,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           icon: Icons.people_outline,
           title: 'Gestion des utilisateurs',
           subtitle: 'Créer et gérer étudiants, enseignants',
-          color: const Color(0xFF6C63FF),
+          color: Colors.green[600]!,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AdminUsersScreen()),
@@ -237,7 +255,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           icon: Icons.book_outlined,
           title: 'Gestion des cours',
           subtitle: 'Créer cours et attribuer aux enseignants',
-          color: const Color(0xFF00D4AA),
+          color: Colors.green[700]!,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AdminCoursScreen()),
@@ -247,7 +265,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
           icon: Icons.fact_check_outlined,
           title: 'Gestion des présences',
           subtitle: 'Voir et gérer les présences',
-          color: const Color(0xFF4CAF50),
+          color: Colors.green[800]!,
           onTap: () => Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const AdminPresencesScreen()),
@@ -270,9 +288,16 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.green.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -292,8 +317,8 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Colors.green[900],
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -302,7 +327,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                   Text(
                     subtitle,
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.green[800]?.withOpacity(0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -311,7 +336,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.green.withOpacity(0.3),
               size: 14,
             ),
           ],

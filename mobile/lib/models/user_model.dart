@@ -29,8 +29,8 @@ class UserModel {
       matricule: json['matricule'] ?? '',
       email: json['email'] ?? '',
       role: json['role'] ?? 'etudiant',
-      biometrieEnregistree: json['biometrie_enregistree'] == 1 ||
-                            json['biometrie_enregistree'] == true,
+      biometrieEnregistree: json['biometrie_active'] == 1 ||
+                            json['biometrie_active'] == true,
       filiere: json['filiere'],
       niveau: json['niveau'],
     );
@@ -44,7 +44,7 @@ class UserModel {
       'matricule': matricule,
       'email': email,
       'role': role,
-      'biometrie_enregistree': biometrieEnregistree,
+      'biometrie_active': biometrieEnregistree,
       'filiere': filiere,
       'niveau': niveau,
     };

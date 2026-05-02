@@ -57,14 +57,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: Colors.white,
       body: _isLoading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF6C63FF)))
+              child: CircularProgressIndicator(color: Colors.green))
           : SafeArea(
               child: RefreshIndicator(
                 onRefresh: _loadData,
-                color: const Color(0xFF6C63FF),
+                color: Colors.green,
                 child: SingleChildScrollView(
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: const EdgeInsets.all(24),
@@ -98,15 +98,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               'Bonjour 👋',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.5),
+                color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 14,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '${_user?.prenom} ${_user?.nom}',
-              style: const TextStyle(
-                color: Colors.white,
+              style: TextStyle(
+                color: Colors.green[900],
                 fontSize: 22,
                 fontWeight: FontWeight.w700,
               ),
@@ -118,16 +118,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: const Color(0xFF6C63FF).withOpacity(0.15),
+                color: Colors.green.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: const Color(0xFF6C63FF).withOpacity(0.3),
+                  color: Colors.green.withOpacity(0.3),
                 ),
               ),
               child: Text(
                 _user?.role.toUpperCase() ?? '',
                 style: const TextStyle(
-                  color: Color(0xFF6C63FF),
+                  color: Colors.green,
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
                 ),
@@ -140,12 +140,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: Colors.green.withOpacity(0.05),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Icon(
                   Icons.logout,
-                  color: Colors.white.withOpacity(0.5),
+                  color: Colors.green[800]?.withOpacity(0.6),
                   size: 18,
                 ),
               ),
@@ -189,11 +189,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStatsRow() {
     return Row(
       children: [
-        _buildStatCard('24', 'Présences', const Color(0xFF6C63FF)),
+        _buildStatCard('24', 'Présences', Colors.green),
         const SizedBox(width: 12),
-        _buildStatCard('3', 'Absences', const Color(0xFFE53935)),
+        _buildStatCard('3', 'Absences', Colors.red),
         const SizedBox(width: 12),
-        _buildStatCard('89%', 'Taux', const Color(0xFF00D4AA)),
+        _buildStatCard('89%', 'Taux', Colors.green[700]!),
       ],
     );
   }
@@ -221,7 +221,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               label,
               style: TextStyle(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 11,
               ),
             ),
@@ -238,10 +238,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
+            Text(
               'Cours du jour',
               style: TextStyle(
-                color: Colors.white,
+                color: Colors.green[900],
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
               ),
@@ -249,7 +249,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Text(
               '${_cours.length} cours',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.4),
+                color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 13,
               ),
             ),
@@ -260,13 +260,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ? Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.withOpacity(0.2)),
                 ),
                 child: Center(
                   child: Text(
                     'Aucun cours aujourd\'hui',
-                    style: TextStyle(color: Colors.white.withOpacity(0.4)),
+                    style: TextStyle(color: Colors.green.withOpacity(0.6)),
                   ),
                 ),
               )
@@ -293,9 +294,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1A1A2E),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.green.withOpacity(0.2)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
         child: Row(
           children: [
@@ -303,13 +311,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFF00D4AA)],
-                ),
+                color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.book_outlined,
-                  color: Colors.white, size: 22),
+              child: const Icon(Icons.book_outlined, color: Colors.green, size: 22),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -318,8 +323,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 children: [
                   Text(
                     cours.nom,
-                    style: const TextStyle(
-                      color: Colors.white,
+                    style: TextStyle(
+                      color: Colors.green[900],
                       fontSize: 15,
                       fontWeight: FontWeight.w600,
                     ),
@@ -328,7 +333,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   Text(
                     '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}',
                     style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
+                      color: Colors.green[800]?.withOpacity(0.6),
                       fontSize: 12,
                     ),
                   ),
@@ -337,7 +342,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             Icon(
               Icons.arrow_forward_ios,
-              color: Colors.white.withOpacity(0.2),
+              color: Colors.green.withOpacity(0.3),
               size: 14,
             ),
           ],
@@ -350,10 +355,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Actions rapides',
           style: TextStyle(
-            color: Colors.white,
+            color: Colors.green[900],
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
@@ -364,7 +369,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildActionBtn(
               icon: Icons.history,
               label: 'Historique',
-              color: const Color(0xFF6C63FF),
+              color: Colors.green[600]!,
               onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const HistoriqueScreen()),
@@ -374,7 +379,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             _buildActionBtn(
               icon: Icons.sync,
               label: 'Synchroniser',
-              color: const Color(0xFF00D4AA),
+              color: Colors.green[800]!,
               onTap: () async {
                 await OfflineService.syncPresences();
                 if (mounted) {

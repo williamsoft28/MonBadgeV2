@@ -33,26 +33,26 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.green[900], size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Historique',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.green[900], fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6C63FF)))
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : _presences.isEmpty
               ? Center(
                   child: Text(
                     'Aucune présence enregistrée',
-                    style: TextStyle(color: Colors.white.withOpacity(0.4)),
+                    style: TextStyle(color: Colors.green.withOpacity(0.6)),
                   ),
                 )
               : ListView.builder(
@@ -64,9 +64,16 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1A1A2E),
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withOpacity(0.06)),
+                        border: Border.all(color: Colors.green.withOpacity(0.2)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
                       ),
                       child: Row(
                         children: [
@@ -74,11 +81,11 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                             width: 46,
                             height: 46,
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00D4AA).withOpacity(0.1),
+                              color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(14),
                             ),
                             child: const Icon(Icons.check_circle_outline,
-                                color: Color(0xFF00D4AA), size: 22),
+                                color: Colors.green, size: 22),
                           ),
                           const SizedBox(width: 16),
                           Expanded(
@@ -87,8 +94,8 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                               children: [
                                 Text(
                                   p.coursNom ?? 'Cours',
-                                  style: const TextStyle(
-                                    color: Colors.white,
+                                  style: TextStyle(
+                                    color: Colors.green[900],
                                     fontSize: 14,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -97,7 +104,7 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                                 Text(
                                   '${Helpers.formatDate(p.date)} · ${Helpers.formatHeure(p.heurePointage)}',
                                   style: TextStyle(
-                                    color: Colors.white.withOpacity(0.4),
+                                    color: Colors.green[800]?.withOpacity(0.6),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -108,13 +115,13 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF00D4AA).withOpacity(0.1),
+                              color: Colors.green.withOpacity(0.1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               p.statut.toUpperCase(),
-                              style: const TextStyle(
-                                color: Color(0xFF00D4AA),
+                              style: TextStyle(
+                                color: Colors.green[700],
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                               ),

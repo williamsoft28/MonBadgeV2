@@ -121,10 +121,10 @@ class _PresenceScreenState extends State<PresenceScreen>
 
   Color get _statusColor {
     switch (_status) {
-      case 'success': return const Color(0xFF00D4AA);
-      case 'error': return const Color(0xFFE53935);
-      case 'offline': return const Color(0xFFFF9800);
-      default: return const Color(0xFF6C63FF);
+      case 'success': return Colors.green[600]!;
+      case 'error': return Colors.red;
+      case 'offline': return Colors.orange;
+      default: return Colors.green;
     }
   }
 
@@ -140,17 +140,17 @@ class _PresenceScreenState extends State<PresenceScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+          icon: Icon(Icons.arrow_back_ios, color: Colors.green[900], size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
+        title: Text(
           'Prendre présence',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(color: Colors.green[900], fontSize: 16, fontWeight: FontWeight.w600),
         ),
       ),
       body: SafeArea(
@@ -162,9 +162,16 @@ class _PresenceScreenState extends State<PresenceScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.06)),
+                  border: Border.all(color: Colors.green.withOpacity(0.2)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
                 ),
                 child: Row(
                   children: [
@@ -172,13 +179,11 @@ class _PresenceScreenState extends State<PresenceScreen>
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFF6C63FF), Color(0xFF00D4AA)],
-                        ),
+                        color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(Icons.book_outlined,
-                          color: Colors.white, size: 24),
+                          color: Colors.green, size: 24),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -187,8 +192,8 @@ class _PresenceScreenState extends State<PresenceScreen>
                         children: [
                           Text(
                             widget.cours.nom,
-                            style: const TextStyle(
-                              color: Colors.white,
+                            style: TextStyle(
+                              color: Colors.green[900],
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -197,14 +202,14 @@ class _PresenceScreenState extends State<PresenceScreen>
                           Text(
                             '${Helpers.formatHeure(widget.cours.heureDebut)} — ${Helpers.formatHeure(widget.cours.heureFin)}',
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.green[800]?.withOpacity(0.6),
                               fontSize: 13,
                             ),
                           ),
                           Text(
                             widget.cours.salle,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.4),
+                              color: Colors.green[800]?.withOpacity(0.6),
                               fontSize: 13,
                             ),
                           ),
@@ -268,7 +273,7 @@ class _PresenceScreenState extends State<PresenceScreen>
                     ? 'Appuyez sur le bouton pour badger'
                     : '',
                 style: TextStyle(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.green[800]?.withOpacity(0.4),
                   fontSize: 13,
                 ),
               ),
@@ -279,8 +284,16 @@ class _PresenceScreenState extends State<PresenceScreen>
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1A1A2E),
+                  color: Colors.white,
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green.withOpacity(0.15)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.02),
+                      blurRadius: 10,
+                      offset: const Offset(0, -4),
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
@@ -307,16 +320,16 @@ class _PresenceScreenState extends State<PresenceScreen>
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFF6C63FF).withOpacity(0.1),
+            color: Colors.green.withOpacity(0.1),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: const Color(0xFF6C63FF), size: 18),
+          child: Icon(icon, color: Colors.green, size: 18),
         ),
         const SizedBox(width: 14),
         Text(
           label,
           style: TextStyle(
-            color: Colors.white.withOpacity(0.6),
+            color: Colors.green[800]?.withOpacity(0.6),
             fontSize: 13,
           ),
         ),

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'screens/admin_dashboard_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -65,12 +66,16 @@ class _SplashScreenState extends State<SplashScreen>
     await Future.delayed(const Duration(seconds: 2));
     try {
       final isLoggedIn = await AuthService.isLoggedIn();
+      final user = await AuthService.getCurrentUser();
       if (mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) =>
-                isLoggedIn ? const DashboardScreen() : const LoginScreen(),
+            builder: (_) => isLoggedIn
+                ? (user?.role == 'admin'
+                    ? const AdminDashboardScreen()
+                    : const DashboardScreen())
+                : const LoginScreen(),
           ),
         );
       }
