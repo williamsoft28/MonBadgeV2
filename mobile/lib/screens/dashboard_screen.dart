@@ -4,6 +4,7 @@ import '../models/cours_model.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/offline_service.dart';
+import '../database/database.dart';
 import '../utils/helpers.dart';
 import 'login_screen.dart';
 import 'presence_screen.dart';
@@ -21,6 +22,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<CoursModel> _cours = [];
   bool _isLoading = true;
   int _pendingSync = 0;
+  int _presencesStats = 0;
+  int _absencesStats = 0;
+  String _tauxStats = '0%';
 
   @override
   void initState() {
@@ -31,17 +35,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _loadData() async {
     _user = await AuthService.getCurrentUser();
     await _loadCours();
+    await _loadStats();
     _pendingSync = await OfflineService.countPendingSync();
     setState(() => _isLoading = false);
   }
 
-  Future<void> _loadCours() async {
-    final response = await ApiService.get('/cours/jour');
-    if (response != null && response is List) {
+  Future<void> _loadStats() async {
+    final response = await ApiService.get('/presences/stats');
+    if (response != null && response['presences'] != null) {
       setState(() {
-        _cours = response.map((c) => CoursModel.fromJson(c)).toList();
+        _presencesStats = response['presences'];
+        _absencesStats = response['absences'];
+        _tauxStats = response['taux'].toString();
       });
     }
+  }
+
+  Future<void> _loadCours() async {
+    try {
+      final response = await ApiService.get('/cours/jour');
+      if (response != null && response is List) {
+        final List<CoursModel> fetchedCours = response.map((c) => CoursModel.fromJson(c)).toList();
+        setState(() {
+          _cours = fetchedCours;
+        });
+        
+        // Save to Drift for offline use
+        final db = OfflineService.getDB();
+        await db.clearCours();
+        final entities = fetchedCours.map((c) => CoursEntity(
+          id: c.id,
+          nom: c.nom,
+          enseignantId: c.enseignantId,
+          salle: c.salle,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          rayonMetres: c.rayonMetres,
+          heureDebut: c.heureDebut,
+          heureFin: c.heureFin,
+          dateCours: c.dateCours,
+          estArchive: c.estArchive,
+          enseignantNom: c.enseignantNom,
+          enseignantPrenom: c.enseignantPrenom,
+          filiere: c.filiere,
+          niveau: c.niveau,
+        )).toList();
+        await db.insertCours(entities);
+      } else {
+        await _loadCoursOffline();
+      }
+    } catch (e) {
+      await _loadCoursOffline();
+    }
+  }
+
+  Future<void> _loadCoursOffline() async {
+    final db = OfflineService.getDB();
+    final entities = await db.getAllCours();
+    setState(() {
+      _cours = entities.map((e) => CoursModel(
+        id: e.id,
+        nom: e.nom,
+        enseignantId: e.enseignantId,
+        salle: e.salle,
+        latitude: e.latitude,
+        longitude: e.longitude,
+        rayonMetres: e.rayonMetres,
+        heureDebut: e.heureDebut,
+        heureFin: e.heureFin,
+        dateCours: e.dateCours,
+        estArchive: e.estArchive,
+        enseignantNom: e.enseignantNom,
+        enseignantPrenom: e.enseignantPrenom,
+        filiere: e.filiere,
+        niveau: e.niveau,
+      )).toList();
+    });
   }
 
   Future<void> _logout() async {
@@ -189,11 +258,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Widget _buildStatsRow() {
     return Row(
       children: [
-        _buildStatCard('24', 'Présences', Colors.green),
+        _buildStatCard('$_presencesStats', 'Présences', Colors.green),
         const SizedBox(width: 12),
-        _buildStatCard('3', 'Absences', Colors.red),
+        _buildStatCard('$_absencesStats', 'Absences', Colors.red),
         const SizedBox(width: 12),
-        _buildStatCard('89%', 'Taux', Colors.green[700]!),
+        _buildStatCard(_tauxStats, 'Taux', Colors.green[700]!),
       ],
     );
   }
@@ -239,7 +308,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(
-              'Cours du jour',
+              'Tous mes cours',
               style: TextStyle(
                 color: Colors.green[900],
                 fontSize: 18,
@@ -331,7 +400,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}',
+                    '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}\nProf: ${cours.enseignantPrenom} ${cours.enseignantNom}',
                     style: TextStyle(
                       color: Colors.green[800]?.withOpacity(0.6),
                       fontSize: 12,

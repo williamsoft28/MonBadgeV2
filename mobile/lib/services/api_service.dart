@@ -31,6 +31,23 @@ class ApiService {
     }
   }
 
+  // GET RAW (for text/csv)
+  static Future<String?> getRaw(String endpoint) async {
+    try {
+      final headers = await getHeaders();
+      final response = await http.get(
+        Uri.parse('${Constants.baseUrl}$endpoint'),
+        headers: headers,
+      );
+      if (response.statusCode == 200) {
+        return response.body;
+      }
+      return null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   // POST
   static Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
     try {
@@ -53,6 +70,21 @@ class ApiService {
       final response = await http.delete(
         Uri.parse('${Constants.baseUrl}$endpoint'),
         headers: headers,
+      );
+      return jsonDecode(response.body);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // PUT
+  static Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
+    try {
+      final headers = await getHeaders();
+      final response = await http.put(
+        Uri.parse('${Constants.baseUrl}$endpoint'),
+        headers: headers,
+        body: jsonEncode(body),
       );
       return jsonDecode(response.body);
     } catch (e) {

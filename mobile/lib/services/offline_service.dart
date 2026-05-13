@@ -1,80 +1,64 @@
-import 'package:sqflite/sqflite.dart';
-import 'package:path/path.dart';
 import '../models/presence_model.dart';
 import 'api_service.dart';
+import '../database/database.dart';
+import 'package:drift/drift.dart';
 
 class OfflineService {
-  static Database? _db;
+  static AppDatabase? _db;
 
-  static Future<Database> getDB() async {
-    if (_db != null) return _db!;
-    _db = await openDatabase(
-      join(await getDatabasesPath(), 'monbadge.db'),
-      onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE presences_offline (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            etudiant_id INTEGER,
-            cours_id INTEGER,
-            date TEXT,
-            heure_pointage TEXT,
-            latitude REAL,
-            longitude REAL,
-            biometrie_validee INTEGER,
-            sync_serveur INTEGER DEFAULT 0
-          )
-        ''');
-      },
-      version: 1,
-    );
+  static AppDatabase getDB() {
+    _db ??= AppDatabase();
     return _db!;
   }
 
   // Sauvegarder présence offline
   static Future<void> savePresence(PresenceModel presence) async {
-    final db = await getDB();
-    await db.insert('presences_offline', {
-      'etudiant_id': presence.etudiantId,
-      'cours_id': presence.coursId,
-      'date': presence.date,
-      'heure_pointage': presence.heurePointage,
-      'latitude': presence.latitude,
-      'longitude': presence.longitude,
-      'biometrie_validee': presence.biometrieValidee ? 1 : 0,
-      'sync_serveur': 0,
-    });
+    final db = getDB();
+    await db.insertPresence(PresencesOfflineTableCompanion.insert(
+      etudiantId: presence.etudiantId,
+      coursId: presence.coursId,
+      date: presence.date,
+      heurePointage: presence.heurePointage,
+      latitude: presence.latitude ?? 0.0,
+      longitude: presence.longitude ?? 0.0,
+      biometrieValidee: Value(presence.biometrieValidee),
+      deviceToken: Value(presence.deviceToken),
+      faceImageBase64: Value(presence.faceImageBase64),
+    ));
   }
 
   // Synchroniser avec le serveur
   static Future<void> syncPresences() async {
-    final db = await getDB();
-    final List<Map<String, dynamic>> presences = await db.query(
-      'presences_offline',
-      where: 'sync_serveur = 0',
-    );
+    final db = getDB();
+    final pending = await db.getPendingPresences();
 
-    for (final p in presences) {
-      final response = await ApiService.post('/presences/sync', {
-        'presences': [p]
-      });
+    if (pending.isEmpty) return;
 
-      if (response != null) {
-        await db.update(
-          'presences_offline',
-          {'sync_serveur': 1},
-          where: 'id = ?',
-          whereArgs: [p['id']],
-        );
-      }
+    List<Map<String, dynamic>> presencesToSync = pending.map((p) => {
+      'etudiant_id': p.etudiantId,
+      'cours_id': p.coursId,
+      'date': p.date,
+      'heure_pointage': p.heurePointage,
+      'latitude': p.latitude,
+      'longitude': p.longitude,
+      'biometrie_validee': p.biometrieValidee ? 1 : 0,
+      'deviceToken': p.deviceToken,
+      'faceImageBase64': p.faceImageBase64,
+    }).toList();
+
+    final response = await ApiService.post('/presences/sync', {
+      'presences': presencesToSync
+    });
+
+    if (response != null) {
+      await db.clearPresences(); // Supprime après sync réussie
     }
   }
 
   // Presences non synchronisées
   static Future<int> countPendingSync() async {
-    final db = await getDB();
-    final result = await db.rawQuery(
-      'SELECT COUNT(*) as count FROM presences_offline WHERE sync_serveur = 0'
-    );
-    return result.first['count'] as int;
+    final db = getDB();
+    final pending = await db.getPendingPresences();
+    return pending.length;
   }
 }

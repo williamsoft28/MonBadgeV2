@@ -1,5 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:local_auth/local_auth.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
 import 'dashboard_screen.dart';
@@ -14,49 +15,47 @@ class BiometricSetupScreen extends StatefulWidget {
 }
 
 class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
-  final LocalAuthentication auth = LocalAuthentication();
+  final ImagePicker _picker = ImagePicker();
   bool _isAuthenticating = false;
 
   Future<void> _enableBiometrics() async {
     setState(() => _isAuthenticating = true);
     
     try {
-      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
-      
-      if (!canAuthenticate) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Biométrie non supportée sur cet appareil.')),
-          );
-          _goToDashboard();
-        }
-        return;
-      }
-
-      final bool didAuthenticate = await auth.authenticate(
-        localizedReason: 'Veuillez vous authentifier pour activer la connexion rapide.',
-        biometricOnly: true,
+      final XFile? photo = await _picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+        maxWidth: 800,
+        maxHeight: 800,
+        imageQuality: 80,
       );
 
-      if (didAuthenticate) {
-        // Sauvegarder les credentials localement
-        await AuthService.saveCredentials(widget.matricule);
-        
-        // Mettre à jour sur le serveur
-        final user = await AuthService.getCurrentUser();
-        if (user != null) {
-          await ApiService.post('/auth/enable-biometrics', {'userId': user.id});
-        }
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('✅ Biométrie activée avec succès !')),
-          );
-          _goToDashboard();
-        }
-      } else {
+      if (photo == null) {
         setState(() => _isAuthenticating = false);
+        return; // L'utilisateur a annulé
+      }
+
+      final bytes = await photo.readAsBytes();
+      final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+      // Mettre à jour sur le serveur
+      final user = await AuthService.getCurrentUser();
+      if (user != null) {
+        final res = await ApiService.post('/auth/enable-biometrics', {
+          'userId': user.id,
+          'faceImageBase64': base64Image,
+        });
+
+        if (res != null && res['success'] == true) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('✅ Visage enregistré avec succès !')),
+            );
+            _goToDashboard();
+          }
+        } else {
+          throw Exception(res?['error'] ?? 'Erreur lors de l\'enregistrement');
+        }
       }
     } catch (e) {
       setState(() => _isAuthenticating = false);
@@ -93,14 +92,15 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
-                  Icons.fingerprint,
+                  Icons.face,
                   size: 64,
                   color: Colors.green,
                 ),
               ),
               const SizedBox(height: 40),
               Text(
-                'Connexion Rapide',
+                'Reconnaissance Faciale',
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.green[900],
                   fontSize: 28,
@@ -109,7 +109,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                'Activez Face ID ou l\'empreinte digitale pour vous connecter instantanément la prochaine fois.',
+                'Prenez un selfie pour enregistrer votre visage. Cela servira à valider vos présences en classe sans utiliser l\'empreinte du téléphone.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: Colors.green[800]?.withOpacity(0.6),
@@ -138,7 +138,7 @@ class _BiometricSetupScreenState extends State<BiometricSetupScreen> {
                           child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
                         )
                       : const Text(
-                          'Activer la biométrie',
+                          'Prendre mon selfie',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,

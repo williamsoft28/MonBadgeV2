@@ -4,6 +4,7 @@ const authController = require('../controllers/authController');
 
 router.post('/register', authController.register);
 router.post('/login', authController.login);
+router.post('/login-biometric', authController.loginBiometric);
 router.post('/enable-biometrics', authController.enableBiometrics);
 
 module.exports = router;

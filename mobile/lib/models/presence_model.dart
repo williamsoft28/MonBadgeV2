@@ -11,6 +11,8 @@ class PresenceModel {
   final bool syncServeur;
   final String? coursNom;
   final String? salle;
+  final String? deviceToken;
+  final String? faceImageBase64;
 
   PresenceModel({
     this.id,
@@ -25,6 +27,8 @@ class PresenceModel {
     this.syncServeur = false,
     this.coursNom,
     this.salle,
+    this.deviceToken,
+    this.faceImageBase64,
   });
 
   factory PresenceModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +49,8 @@ class PresenceModel {
       syncServeur: json['sync_serveur'] == 1,
       coursNom: json['cours_nom'],
       salle: json['salle'],
+      deviceToken: json['deviceToken'],
+      faceImageBase64: json['faceImageBase64'],
     );
   }
 
@@ -60,6 +66,8 @@ class PresenceModel {
       'longitude': longitude,
       'biometrie_validee': biometrieValidee,
       'sync_serveur': syncServeur,
+      if (deviceToken != null) 'deviceToken': deviceToken,
+      if (faceImageBase64 != null) 'faceImageBase64': faceImageBase64,
     };
   }
 }

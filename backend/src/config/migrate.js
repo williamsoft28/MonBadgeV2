@@ -25,13 +25,34 @@ async function migrate() {
       mot_de_passe VARCHAR(255) NOT NULL,
       role ENUM('etudiant', 'enseignant', 'admin') NOT NULL,
       biometrie_enregistree BOOLEAN DEFAULT FALSE,
+      device_biometric_token VARCHAR(255),
+      face_descriptor TEXT,
       created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  
+  // Update existing table if needed
+  try {
+    await connection.execute('ALTER TABLE utilisateurs ADD COLUMN device_biometric_token VARCHAR(255)');
+    console.log('✅ Colonne device_biometric_token ajoutée');
+  } catch (e) {}
+
+  try {
+    await connection.execute('ALTER TABLE utilisateurs ADD COLUMN face_descriptor TEXT');
+    console.log('✅ Colonne face_descriptor ajoutée');
+  } catch (e) {}
+
   console.log('✅ Table utilisateurs créée');
 
+  // Pour la migration, on vide et supprime les anciennes tables de cours et présences
+  await connection.execute(`SET FOREIGN_KEY_CHECKS = 0`);
+  await connection.execute(`DROP TABLE IF EXISTS presences_offline`);
+  await connection.execute(`DROP TABLE IF EXISTS presences`);
+  await connection.execute(`DROP TABLE IF EXISTS cours`);
+  await connection.execute(`SET FOREIGN_KEY_CHECKS = 1`);
+
   await connection.execute(`
-    CREATE TABLE IF NOT EXISTS cours (
+    CREATE TABLE cours (
       id INT AUTO_INCREMENT PRIMARY KEY,
       nom VARCHAR(150) NOT NULL,
       enseignant_id INT NOT NULL,
@@ -41,11 +62,14 @@ async function migrate() {
       rayon_metres INT DEFAULT 15,
       heure_debut TIME NOT NULL,
       heure_fin TIME NOT NULL,
-      jour ENUM('Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi') NOT NULL,
+      date_cours DATE NOT NULL,
+      filiere VARCHAR(100),
+      niveau VARCHAR(50),
+      est_archive BOOLEAN DEFAULT FALSE,
       FOREIGN KEY (enseignant_id) REFERENCES utilisateurs(id)
     )
   `);
-  console.log('✅ Table cours créée');
+  console.log('✅ Table cours recréée avec date_cours et est_archive');
 
   await connection.execute(`
     CREATE TABLE IF NOT EXISTS presences (

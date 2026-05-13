@@ -8,5 +8,6 @@ router.post('/pointer', auth, role('etudiant'), presenceController.pointerPresen
 router.get('/historique', auth, presenceController.getHistorique);
 router.get('/cours/:cours_id', auth, role('enseignant', 'admin'), presenceController.getPresencesCours);
 router.post('/sync', auth, presenceController.syncOffline);
+router.get('/stats', auth, presenceController.getStats);
 
 module.exports = router;

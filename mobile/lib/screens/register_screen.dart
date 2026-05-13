@@ -17,6 +17,8 @@ class _RegisterScreenState extends State<RegisterScreen>
   final _matriculeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _filiereController = TextEditingController();
+  String? _niveau;
   String _role = 'etudiant';
   bool _isLoading = false;
   bool _obscurePassword = true;
@@ -49,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen>
     _matriculeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _filiereController.dispose();
     super.dispose();
   }
 
@@ -71,6 +74,8 @@ class _RegisterScreenState extends State<RegisterScreen>
       'email': _emailController.text.trim(),
       'mot_de_passe': _passwordController.text,
       'role': _role,
+      if (_role == 'etudiant') 'filiere': _filiereController.text.trim().isEmpty ? null : _filiereController.text.trim(),
+      if (_role == 'etudiant') 'niveau': _niveau,
     });
 
     setState(() => _isLoading = false);
@@ -277,6 +282,41 @@ class _RegisterScreenState extends State<RegisterScreen>
                                 ),
                               ),
                             ),
+                            if (_role == 'etudiant') ...[
+                              const SizedBox(height: 16),
+                              _buildLabel('Filière (Ex: Informatique)'),
+                              const SizedBox(height: 8),
+                              _buildTextField(
+                                controller: _filiereController,
+                                hint: 'Informatique',
+                                icon: Icons.school_outlined,
+                              ),
+                              const SizedBox(height: 16),
+                              _buildLabel('Niveau'),
+                              const SizedBox(height: 8),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 16),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFF0A0A0F),
+                                  borderRadius: BorderRadius.circular(14),
+                                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _niveau,
+                                    hint: Text('Sélectionnez un niveau', style: TextStyle(color: Colors.white.withOpacity(0.25))),
+                                    dropdownColor: const Color(0xFF1A1A2E),
+                                    style: const TextStyle(color: Colors.white),
+                                    icon: Icon(Icons.keyboard_arrow_down, color: Colors.white.withOpacity(0.3)),
+                                    isExpanded: true,
+                                    items: [null, 'Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2']
+                                        .map((n) => DropdownMenuItem(value: n, child: Text(n ?? 'Tous')))
+                                        .toList(),
+                                    onChanged: (value) => setState(() => _niveau = value),
+                                  ),
+                                ),
+                              ),
+                            ],
                             const SizedBox(height: 28),
                             SizedBox(
                               width: double.infinity,

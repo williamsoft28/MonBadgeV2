@@ -15,7 +15,10 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@tensorflow/tfjs-node": "^4.22.0",
+    "@vladmandic/face-api": "^1.7.15",
     "bcryptjs": "^3.0.3",
+    "canvas": "^3.2.3",
     "cors": "^2.8.6",
     "db-migrate": "^0.11.14",
     "db-migrate-mysql": "^3.0.0",
@@ -27,5 +30,4 @@
   "devDependencies": {
     "nodemon": "^3.1.14"
   }
-  
 }

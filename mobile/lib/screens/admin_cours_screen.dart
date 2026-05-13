@@ -22,7 +22,9 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
   final _longitudeController = TextEditingController();
   final _heureDebutController = TextEditingController();
   final _heureFinController = TextEditingController();
-  String _jour = 'Lundi';
+  final _filiereController = TextEditingController();
+  final _dateCoursController = TextEditingController();
+  String? _niveau;
   int? _enseignantId;
 
   @override
@@ -39,6 +41,8 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
     _longitudeController.dispose();
     _heureDebutController.dispose();
     _heureFinController.dispose();
+    _filiereController.dispose();
+    _dateCoursController.dispose();
     super.dispose();
   }
 
@@ -71,37 +75,111 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
         _heureDebutController.text.isEmpty ||
         _heureFinController.text.isEmpty ||
         _enseignantId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veuillez remplir tous les champs requis.')),
-      );
+      Helpers.showError(context, 'Veuillez remplir tous les champs requis.');
+      return;
+    }
+
+    final lat = double.tryParse(_latitudeController.text.replaceAll(',', '.'));
+    final lng = double.tryParse(_longitudeController.text.replaceAll(',', '.'));
+
+    if (lat == null || lng == null) {
+      Helpers.showError(context, 'Les coordonnées GPS doivent être des nombres valides.');
       return;
     }
 
     final coursData = {
       'nom': _nomController.text,
       'salle': _salleController.text,
-      'latitude': double.tryParse(_latitudeController.text),
-      'longitude': double.tryParse(_longitudeController.text),
-      'heureDebut': _heureDebutController.text,
-      'heureFin': _heureFinController.text,
-      'jour': _jour,
-      'enseignantId': _enseignantId,
+      'latitude': lat,
+      'longitude': lng,
+      'heure_debut': _heureDebutController.text,
+      'heure_fin': _heureFinController.text,
+      'date_cours': _dateCoursController.text,
+      'enseignant_id': _enseignantId,
+      'filiere': _filiereController.text.trim().isEmpty ? null : _filiereController.text.trim(),
+      'niveau': _niveau,
     };
 
-    final response = await ApiService.post('/api/cours', coursData);
+    final response = await ApiService.post('/cours', coursData);
     if (response != null && response['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Cours créé avec succès.')),
-      );
+      Helpers.showSuccess(context, 'Cours créé avec succès.');
       _loadData(); // Recharger la liste des cours
+      Navigator.pop(context); // Fermer le modal
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Échec de la création du cours.')),
-      );
+      Helpers.showError(context, response?['error'] ?? 'Échec de la création du cours.');
     }
   }
 
-  void _showCreateModal() {
+  Future<void> _updateCours(int id) async {
+    if (_nomController.text.isEmpty ||
+        _salleController.text.isEmpty ||
+        _latitudeController.text.isEmpty ||
+        _longitudeController.text.isEmpty ||
+        _heureDebutController.text.isEmpty ||
+        _heureFinController.text.isEmpty ||
+        _enseignantId == null) {
+      Helpers.showError(context, 'Veuillez remplir tous les champs requis.');
+      return;
+    }
+
+    final lat = double.tryParse(_latitudeController.text.replaceAll(',', '.'));
+    final lng = double.tryParse(_longitudeController.text.replaceAll(',', '.'));
+
+    if (lat == null || lng == null) {
+      Helpers.showError(context, 'Les coordonnées GPS doivent être des nombres valides.');
+      return;
+    }
+
+    final coursData = {
+      'nom': _nomController.text,
+      'salle': _salleController.text,
+      'latitude': lat,
+      'longitude': lng,
+      'heure_debut': _heureDebutController.text,
+      'heure_fin': _heureFinController.text,
+      'date_cours': _dateCoursController.text,
+      'enseignant_id': _enseignantId,
+      'filiere': _filiereController.text.trim().isEmpty ? null : _filiereController.text.trim(),
+      'niveau': _niveau,
+    };
+
+    final response = await ApiService.put('/cours/$id', coursData);
+    if (response != null && response['success'] == true) {
+      Helpers.showSuccess(context, 'Cours modifié avec succès.');
+      _loadData(); // Recharger la liste des cours
+      Navigator.pop(context); // Fermer le modal
+    } else {
+      Helpers.showError(context, response?['error'] ?? 'Échec de la modification du cours.');
+    }
+  }
+
+  Future<void> _deleteCours(int id) async {
+    final response = await ApiService.delete('/cours/$id');
+    if (response != null && response['success'] == true) {
+      Helpers.showSuccess(context, 'Cours supprimé avec succès.');
+      _loadData();
+    } else {
+      Helpers.showError(context, response?['error'] ?? 'Échec de la suppression du cours.');
+    }
+  }
+
+  void _clearForm() {
+    _nomController.clear();
+    _salleController.clear();
+    _latitudeController.clear();
+    _longitudeController.clear();
+    _heureDebutController.clear();
+    _heureFinController.clear();
+    _filiereController.clear();
+    _dateCoursController.clear();
+    setState(() {
+      _enseignantId = null;
+      _niveau = null;
+    });
+  }
+
+  void _showCreateModal({CoursModel? coursToEdit}) {
+    if (coursToEdit == null) _clearForm();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -126,7 +204,7 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Créer un cours',
+                      coursToEdit == null ? 'Créer un cours' : 'Modifier le cours',
                       style: TextStyle(
                         color: Colors.green[800],
                         fontSize: 18,
@@ -199,30 +277,36 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildModalLabel('Jour'),
+                          _buildModalLabel('Date'),
                           const SizedBox(height: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.circular(14),
-                              border: Border.all(color: Colors.green.withOpacity(0.3)),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: _jour,
-                                dropdownColor: Colors.white,
-                                style: TextStyle(color: Colors.green[800]),
-                                isExpanded: true,
-                                icon: Icon(Icons.arrow_drop_down, color: Colors.green),
-                                items: ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi']
-                                    .map((j) => DropdownMenuItem(value: j, child: Text(j)))
-                                    .toList(),
-                                onChanged: (value) {
-                                  setState(() => _jour = value!);
-                                  setModalState(() => _jour = value!);
+                          GestureDetector(
+                            onTap: () async {
+                              final picked = await showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                                lastDate: DateTime.now().add(const Duration(days: 365)),
+                                builder: (context, child) {
+                                  return Theme(
+                                    data: Theme.of(context).copyWith(
+                                      colorScheme: ColorScheme.light(
+                                        primary: Colors.green,
+                                        onPrimary: Colors.white,
+                                        onSurface: Colors.green[900]!,
+                                      ),
+                                    ),
+                                    child: child!,
+                                  );
                                 },
-                              ),
+                              );
+                              if (picked != null) {
+                                setModalState(() {
+                                  _dateCoursController.text = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                });
+                              }
+                            },
+                            child: AbsorbPointer(
+                              child: _buildModalTextField(_dateCoursController, 'YYYY-MM-DD', Icons.calendar_today_outlined),
                             ),
                           ),
                         ],
@@ -253,6 +337,58 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                           _buildModalLabel('Fin'),
                           const SizedBox(height: 8),
                           _buildModalTextField(_heureFinController, '10:00', Icons.access_time),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Row: Filière & Niveau
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel('Filière (Optionnel)'),
+                          const SizedBox(height: 8),
+                          _buildModalTextField(_filiereController, 'Ex: Informatique', Icons.school_outlined),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildModalLabel('Niveau (Optionnel)'),
+                          const SizedBox(height: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.green.withOpacity(0.3)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _niveau,
+                                hint: Text('Tous', style: TextStyle(color: Colors.green.withOpacity(0.4), fontSize: 13)),
+                                dropdownColor: Colors.white,
+                                style: TextStyle(color: Colors.green[800]),
+                                isExpanded: true,
+                                icon: Icon(Icons.arrow_drop_down, color: Colors.green),
+                                items: [null, 'Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2']
+                                    .map((n) => DropdownMenuItem(value: n, child: Text(n ?? 'Tous')))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() => _niveau = value);
+                                  setModalState(() => _niveau = value);
+                                },
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -292,7 +428,13 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _createCours,
+                    onPressed: () {
+                      if (coursToEdit == null) {
+                        _createCours();
+                      } else {
+                        _updateCours(coursToEdit.id);
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -306,10 +448,10 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                         color: Colors.green,
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Créer le cours',
-                          style: TextStyle(
+                          coursToEdit == null ? 'Créer le cours' : 'Enregistrer les modifications',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -453,14 +595,23 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${cours.jour} · ${Helpers.formatHeure(cours.heureDebut)} - ${Helpers.formatHeure(cours.heureFin)}',
+                                  '${cours.dateCours} · ${Helpers.formatHeure(cours.heureDebut)} - ${Helpers.formatHeure(cours.heureFin)}',
                                   style: TextStyle(
                                     color: Colors.green[800]?.withOpacity(0.6),
                                     fontSize: 12,
                                   ),
                                 ),
+                                if (cours.filiere != null || cours.niveau != null)
+                                  Text(
+                                    '${cours.niveau ?? ''} ${cours.filiere ?? ''}'.trim(),
+                                    style: TextStyle(
+                                      color: Colors.green[800]?.withOpacity(0.5),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
                                 Text(
-                                  cours.salle,
+                                  'Salle: ${cours.salle} · Prof: ${cours.enseignantPrenom} ${cours.enseignantNom}',
                                   style: TextStyle(
                                     color: Colors.green[800]?.withOpacity(0.5),
                                     fontSize: 11,
@@ -468,6 +619,90 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                                 ),
                               ],
                             ),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  _nomController.text = cours.nom;
+                                  _salleController.text = cours.salle;
+                                  _latitudeController.text = cours.latitude.toString();
+                                  _longitudeController.text = cours.longitude.toString();
+                                  _heureDebutController.text = cours.heureDebut;
+                                  _heureFinController.text = cours.heureFin;
+                                  _dateCoursController.text = cours.dateCours;
+                                  _enseignantId = cours.enseignantId;
+                                  _filiereController.text = cours.filiere ?? '';
+                                  _niveau = cours.niveau;
+                                  _showCreateModal(coursToEdit: cours);
+                                },
+                                child: Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.blue.withOpacity(0.7),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () => showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    backgroundColor: Colors.white,
+                                    title: Text(
+                                      'Supprimer ?',
+                                      style: TextStyle(color: Colors.green[900]),
+                                    ),
+                                    content: Text(
+                                      'Voulez-vous supprimer le cours ${cours.nom} ?',
+                                      style: TextStyle(
+                                        color: Colors.green[800]?.withOpacity(0.8),
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Annuler', style: TextStyle(color: Colors.grey)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          _deleteCours(cours.id);
+                                        },
+                                        child: const Text(
+                                          'Supprimer',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red.withOpacity(0.7),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () async {
+                                  // Télécharger le rapport
+                                  final response = await ApiService.getRaw('/cours/${cours.id}/report');
+                                  if (response != null) {
+                                    Helpers.showSuccess(context, 'Rapport CSV téléchargé (simulation)');
+                                  } else {
+                                    Helpers.showError(context, 'Erreur lors du téléchargement du rapport');
+                                  }
+                                },
+                                child: Icon(
+                                  Icons.download_outlined,
+                                  color: Colors.green.withOpacity(0.7),
+                                  size: 18,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),

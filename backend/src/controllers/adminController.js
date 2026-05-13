@@ -109,3 +109,17 @@ exports.getAbsencesEtudiant = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Modifier un utilisateur
+exports.updateUser = async (req, res) => {
+  try {
+    const { nom, prenom, matricule, email, role, filiere, niveau } = req.body;
+    await db.execute(
+      `UPDATE utilisateurs SET nom = ?, prenom = ?, matricule = ?, email = ?, role = ?, filiere = ?, niveau = ? WHERE id = ?`,
+      [nom, prenom, matricule, email, role, filiere || null, niveau || null, req.params.id]
+    );
+    res.json({ message: '✅ Utilisateur modifié avec succès' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

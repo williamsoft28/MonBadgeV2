@@ -56,25 +56,37 @@ class _LoginScreenState extends State<LoginScreen>
   }
 
   Future<void> _checkBiometricAutoLogin() async {
-    final savedMatricule = await AuthService.getSavedCredentials();
-    if (savedMatricule != null && savedMatricule.isNotEmpty) {
+    final creds = await AuthService.getSavedCredentials();
+    final savedMatricule = creds['matricule'];
+    final deviceToken = creds['deviceToken'];
+
+    if (savedMatricule != null && deviceToken != null && mounted) {
       final LocalAuthentication auth = LocalAuthentication();
-      final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
-      if (canAuthenticateWithBiometrics || await auth.isDeviceSupported()) {
-        try {
+      try {
+        final bool canAuthenticateWithBiometrics = await auth.canCheckBiometrics;
+        final bool canAuthenticate = canAuthenticateWithBiometrics || await auth.isDeviceSupported();
+        
+        if (canAuthenticate) {
           final bool didAuthenticate = await auth.authenticate(
-            localizedReason: 'Authentifiez-vous pour accéder à votre espace',
+            localizedReason: 'Connexion rapide avec la biométrie',
             biometricOnly: true,
           );
+
           if (didAuthenticate) {
-            setState(() {
-              _matriculeController.text = savedMatricule;
-            });
-            await _login();
+            setState(() => _isLoading = true);
+            final result = await AuthService.loginBiometric(savedMatricule, deviceToken);
+            setState(() => _isLoading = false);
+
+            if (result['success'] && mounted) {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const DashboardScreen()),
+              );
+            }
           }
-        } catch (e) {
-          debugPrint('Erreur biométrique: $e');
         }
+      } catch (e) {
+        // Fallback to manual login
       }
     }
   }

@@ -72,9 +72,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       'email': _emailController.text,
       'mot_de_passe': _passwordController.text,
       'role': _role,
-      'matricule': _matriculeController.text,
-      'filiere': _filiereController.text,
-      'niveau': _niveauController.text,
+      'matricule': _matriculeController.text.trim(),
+      'filiere': _filiereController.text.trim(),
+      'niveau': _niveauController.text.trim(),
     };
     print('Données envoyées : $userData');
 
@@ -112,7 +112,47 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     }
   }
 
-  void _showCreateModal() {
+  Future<void> _updateUser(int id) async {
+    if (_nomController.text.isEmpty ||
+        _prenomController.text.isEmpty ||
+        _matriculeController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Veuillez remplir les champs obligatoires')),
+      );
+      return;
+    }
+
+    final userData = {
+      'nom': _nomController.text,
+      'prenom': _prenomController.text,
+      'email': _emailController.text,
+      'role': _role,
+      'matricule': _matriculeController.text.trim(),
+      'filiere': _filiereController.text.trim(),
+      'niveau': _niveauController.text.trim(),
+    };
+
+    final response = await ApiService.put('/admin/users/$id', userData);
+
+    if (response != null && response['message'] != null) {
+      if (mounted) {
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Utilisateur modifié avec succès')),
+        );
+        _loadUsers();
+      }
+    } else {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(response?['error'] ?? 'Erreur de modification')),
+        );
+      }
+    }
+  }
+
+  void _showCreateModal({UserModel? userToEdit}) {
+    if (userToEdit == null) _clearForm();
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -137,7 +177,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      'Créer un utilisateur',
+                      userToEdit == null ? 'Créer un utilisateur' : 'Modifier l\'utilisateur',
                       style: TextStyle(
                         color: Colors.green[800],
                         fontSize: 18,
@@ -302,10 +342,30 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           children: [
                             _buildModalLabel('Niveau'),
                             const SizedBox(height: 8),
-                            _buildModalTextField(
-                              _niveauController,
-                              'L3',
-                              Icons.grade_outlined,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _niveauController.text.isEmpty ? null : _niveauController.text,
+                                  hint: Text('Niveau', style: TextStyle(color: Colors.green.withOpacity(0.4), fontSize: 13)),
+                                  dropdownColor: Colors.white,
+                                  style: TextStyle(color: Colors.green[800]),
+                                  isExpanded: true,
+                                  icon: Icon(Icons.arrow_drop_down, color: Colors.green),
+                                  items: [null, 'Licence 1', 'Licence 2', 'Licence 3', 'Master 1', 'Master 2']
+                                      .map((n) => DropdownMenuItem(value: n, child: Text(n ?? 'Tous')))
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() => _niveauController.text = value ?? '');
+                                    setModalState(() => _niveauController.text = value ?? '');
+                                  },
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -317,6 +377,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
 
                 // Info biométrie
                 Container(
+
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: Colors.green.withOpacity(0.05),
@@ -351,7 +412,13 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _createUser,
+                    onPressed: () {
+                      if (userToEdit == null) {
+                        _createUser();
+                      } else {
+                        _updateUser(userToEdit.id);
+                      }
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.transparent,
                       shadowColor: Colors.transparent,
@@ -365,10 +432,10 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         color: Colors.green, // Couleur verte unie
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Center(
+                      child: Center(
                         child: Text(
-                          'Créer l\'utilisateur',
-                          style: TextStyle(
+                          userToEdit == null ? 'Créer l\'utilisateur' : 'Enregistrer les modifications',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -596,46 +663,69 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: () => showDialog(
-                              context: context,
-                              builder: (_) => AlertDialog(
-                                backgroundColor: Colors.white,
-                                title: Text(
-                                  'Supprimer ?',
-                                  style: TextStyle(color: Colors.green[900]),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              GestureDetector(
+                                onTap: () {
+                                  _nomController.text = user.nom;
+                                  _prenomController.text = user.prenom;
+                                  _matriculeController.text = user.matricule;
+                                  _emailController.text = user.email;
+                                  _role = user.role;
+                                  _filiereController.text = user.filiere ?? '';
+                                  _niveauController.text = user.niveau ?? '';
+                                  _showCreateModal(userToEdit: user);
+                                },
+                                child: Icon(
+                                  Icons.edit_outlined,
+                                  color: Colors.blue.withOpacity(0.7),
+                                  size: 18,
                                 ),
-                                content: Text(
-                                  'Voulez-vous supprimer ${user.prenom} ${user.nom} ?',
-                                  style: TextStyle(
-                                    color: Colors.green[800]?.withOpacity(0.8),
-                                  ),
-                                ),
-                                actions: [
-                                  TextButton(
-                                    onPressed: () => Navigator.pop(context),
-                                    child: const Text('Annuler', style: TextStyle(color: Colors.grey)),
-                                  ),
-                                  TextButton(
-                                    onPressed: () {
-                                      Navigator.pop(context);
-                                      _deleteUser(user.id);
-                                    },
-                                    child: const Text(
-                                      'Supprimer',
+                              ),
+                              const SizedBox(width: 12),
+                              GestureDetector(
+                                onTap: () => showDialog(
+                                  context: context,
+                                  builder: (_) => AlertDialog(
+                                    backgroundColor: Colors.white,
+                                    title: Text(
+                                      'Supprimer ?',
+                                      style: TextStyle(color: Colors.green[900]),
+                                    ),
+                                    content: Text(
+                                      'Voulez-vous supprimer ${user.prenom} ${user.nom} ?',
                                       style: TextStyle(
-                                        color: Colors.red,
+                                        color: Colors.green[800]?.withOpacity(0.8),
                                       ),
                                     ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () => Navigator.pop(context),
+                                        child: const Text('Annuler', style: TextStyle(color: Colors.grey)),
+                                      ),
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(context);
+                                          _deleteUser(user.id);
+                                        },
+                                        child: const Text(
+                                          'Supprimer',
+                                          style: TextStyle(
+                                            color: Colors.red,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                ],
+                                ),
+                                child: Icon(
+                                  Icons.delete_outline,
+                                  color: Colors.red.withOpacity(0.7),
+                                  size: 18,
+                                ),
                               ),
-                            ),
-                            child: Icon(
-                              Icons.delete_outline,
-                              color: Colors.red.withOpacity(0.7),
-                              size: 18,
-                            ),
+                            ],
                           ),
                         ],
                       ),

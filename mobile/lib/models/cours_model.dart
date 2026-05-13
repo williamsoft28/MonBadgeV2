@@ -8,9 +8,12 @@ class CoursModel {
   final int rayonMetres;
   final String heureDebut;
   final String heureFin;
-  final String jour;
+  final String dateCours;
+  final bool estArchive;
   final String enseignantNom;
   final String enseignantPrenom;
+  final String? filiere;
+  final String? niveau;
 
   CoursModel({
     required this.id,
@@ -22,9 +25,12 @@ class CoursModel {
     required this.rayonMetres,
     required this.heureDebut,
     required this.heureFin,
-    required this.jour,
+    required this.dateCours,
+    this.estArchive = false,
     required this.enseignantNom,
     required this.enseignantPrenom,
+    this.filiere,
+    this.niveau,
   });
 
   factory CoursModel.fromJson(Map<String, dynamic> json) {
@@ -38,9 +44,12 @@ class CoursModel {
       rayonMetres: json['rayon_metres'],
       heureDebut: json['heure_debut'],
       heureFin: json['heure_fin'],
-      jour: json['jour'],
-      enseignantNom: json['nom'] ?? '',
-      enseignantPrenom: json['prenom'] ?? '',
+      dateCours: json['date_cours'].toString().split('T')[0], // format YYYY-MM-DD
+      estArchive: json['est_archive'] == 1 || json['est_archive'] == true,
+      enseignantNom: json['enseignant_nom'] ?? '',
+      enseignantPrenom: json['enseignant_prenom'] ?? '',
+      filiere: json['filiere'],
+      niveau: json['niveau'],
     );
   }
 
@@ -55,7 +64,10 @@ class CoursModel {
       'rayon_metres': rayonMetres,
       'heure_debut': heureDebut,
       'heure_fin': heureFin,
-      'jour': jour,
+      'date_cours': dateCours,
+      'est_archive': estArchive ? 1 : 0,
+      'filiere': filiere,
+      'niveau': niveau,
     };
   }
 }

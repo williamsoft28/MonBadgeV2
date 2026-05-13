@@ -1,13 +1,15 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/cours_model.dart';
 import '../models/presence_model.dart';
-import '../services/biometric_service.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
 import '../services/offline_service.dart';
 import '../services/auth_service.dart';
 import '../utils/helpers.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:geolocator/geolocator.dart';
 
 class PresenceScreen extends StatefulWidget {
   final CoursModel cours;
@@ -21,9 +23,11 @@ class _PresenceScreenState extends State<PresenceScreen>
     with SingleTickerProviderStateMixin {
   bool _isLoading = false;
   String _status = 'idle';
-  String _statusMessage = 'Prêt à badger';
+  String _statusMessage = 'Acquisition GPS en arrière-plan...';
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
+  Position? _cachedPosition;
+  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -35,6 +39,44 @@ class _PresenceScreenState extends State<PresenceScreen>
     _pulseAnim = Tween<double>(begin: 0.95, end: 1.05).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
+    _prefetchLocation();
+  }
+
+  Future<void> _prefetchLocation() async {
+    if (_isLocked()) {
+      setState(() {
+        _status = 'locked';
+        _statusMessage = "Hors délai. Présence verrouillée.";
+      });
+      return;
+    }
+
+    final position = await LocationService.getCurrentPosition();
+    if (mounted) {
+      setState(() {
+        _cachedPosition = position;
+        _statusMessage = 'Prêt à badger';
+      });
+    }
+  }
+
+  bool _isLocked() {
+    try {
+      final now = DateTime.now();
+      // Heure au format HH:mm:ss, dateCours YYYY-MM-DD
+      final debutStr = widget.cours.heureDebut.length == 5 ? '${widget.cours.heureDebut}:00' : widget.cours.heureDebut;
+      final finStr = widget.cours.heureFin.length == 5 ? '${widget.cours.heureFin}:00' : widget.cours.heureFin;
+
+      final debut = DateTime.parse('${widget.cours.dateCours}T$debutStr');
+      final fin = DateTime.parse('${widget.cours.dateCours}T$finStr');
+      
+      final windowStart = debut.subtract(const Duration(minutes: 10));
+      final windowEnd = fin.add(const Duration(minutes: 10));
+      
+      return now.isBefore(windowStart) || now.isAfter(windowEnd);
+    } catch (e) {
+      return false;
+    }
   }
 
   @override
@@ -44,6 +86,11 @@ class _PresenceScreenState extends State<PresenceScreen>
   }
 
   Future<void> _pointer() async {
+    if (_isLocked()) {
+      _setStatus('locked', 'Le cours est verrouillé (hors délai).');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _status = 'loading';
@@ -51,7 +98,11 @@ class _PresenceScreenState extends State<PresenceScreen>
     });
 
     // Étape 1 — Géolocalisation
-    final position = await LocationService.getCurrentPosition();
+    Position? position = _cachedPosition;
+    if (position == null) {
+      position = await LocationService.getCurrentPosition();
+    }
+    
     if (position == null) {
       _setStatus('error', 'Impossible d\'obtenir votre position GPS');
       return;
@@ -67,14 +118,24 @@ class _PresenceScreenState extends State<PresenceScreen>
       return;
     }
 
-    setState(() => _statusMessage = 'Authentification biométrique...');
+    setState(() => _statusMessage = 'Prenez un selfie pour valider...');
 
-    // Étape 2 — Biométrie
-    final bioOk = await BiometricService.authenticate();
-    if (!bioOk) {
-      _setStatus('error', 'Authentification biométrique échouée');
+    // Étape 2 — Biométrie (Reconnaissance Faciale)
+    final XFile? photo = await _picker.pickImage(
+      source: ImageSource.camera,
+      preferredCameraDevice: CameraDevice.front,
+      maxWidth: 800,
+      maxHeight: 800,
+      imageQuality: 80,
+    );
+
+    if (photo == null) {
+      _setStatus('error', 'Vous devez prendre une photo pour valider la présence');
       return;
     }
+
+    final bytes = await photo.readAsBytes();
+    final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
 
     setState(() => _statusMessage = 'Enregistrement de la présence...');
 
@@ -88,19 +149,22 @@ class _PresenceScreenState extends State<PresenceScreen>
       latitude: position.latitude,
       longitude: position.longitude,
       biometrieValidee: true,
+      deviceToken: null, // Plus utilisé
+      faceImageBase64: base64Image, // Ajouté dans le modèle si nécessaire
     );
 
     // Étape 3 — Réseau ou offline
     final connectivity = await Connectivity().checkConnectivity();
     if (connectivity == ConnectivityResult.none) {
       await OfflineService.savePresence(presence);
-      _setStatus('offline', 'Présence sauvegardée hors ligne');
+      _setStatus('offline', 'Présence sauvegardée hors ligne (Photo incluse)');
     } else {
       final response = await ApiService.post('/presences/pointer', {
         'cours_id': widget.cours.id,
         'latitude': position.latitude,
         'longitude': position.longitude,
         'biometrie_validee': true,
+        'faceImageBase64': base64Image,
       });
 
       if (response != null && response['message'] != null) {
@@ -112,6 +176,7 @@ class _PresenceScreenState extends State<PresenceScreen>
   }
 
   void _setStatus(String status, String message) {
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
       _status = status;
@@ -124,6 +189,7 @@ class _PresenceScreenState extends State<PresenceScreen>
       case 'success': return Colors.green[600]!;
       case 'error': return Colors.red;
       case 'offline': return Colors.orange;
+      case 'locked': return Colors.grey;
       default: return Colors.green;
     }
   }
@@ -133,6 +199,7 @@ class _PresenceScreenState extends State<PresenceScreen>
       case 'success': return Icons.check_circle_outline;
       case 'error': return Icons.error_outline;
       case 'offline': return Icons.cloud_off_outlined;
+      case 'locked': return Icons.lock_outline;
       default: return Icons.fingerprint;
     }
   }
@@ -226,7 +293,7 @@ class _PresenceScreenState extends State<PresenceScreen>
               ScaleTransition(
                 scale: _status == 'idle' ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
                 child: GestureDetector(
-                  onTap: _isLoading ? null : _pointer,
+                  onTap: (_isLoading || _status == 'locked') ? null : _pointer,
                   child: Container(
                     width: 200,
                     height: 200,
