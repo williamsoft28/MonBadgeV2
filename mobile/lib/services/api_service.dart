@@ -42,23 +42,27 @@ class ApiService {
         final db = OfflineService.getDB();
         if (endpoint.contains('/cours')) {
           final cours = await db.getAllCours();
-          return cours.map((c) => {
-                'id': c.id,
-                'nom': c.nom,
-                'enseignant_id': c.enseignantId,
-                'salle': c.salle,
-                'latitude': c.latitude,
-                'longitude': c.longitude,
-                'rayon_metres': c.rayonMetres,
-                'heure_debut': c.heureDebut,
-                'heure_fin': c.heureFin,
-                'date_cours': c.dateCours,
-                'est_archive': c.estArchive ? 1 : 0,
-                'enseignant_nom': c.enseignantNom,
-                'enseignant_prenom': c.enseignantPrenom,
-                'filiere': c.filiere,
-                'niveau': c.niveau,
-              }).toList();
+          return cours
+              .map(
+                (c) => {
+                  'id': c.id,
+                  'nom': c.nom,
+                  'enseignant_id': c.enseignantId,
+                  'salle': c.salle,
+                  'latitude': c.latitude,
+                  'longitude': c.longitude,
+                  'rayon_metres': c.rayonMetres,
+                  'heure_debut': c.heureDebut,
+                  'heure_fin': c.heureFin,
+                  'date_cours': c.dateCours,
+                  'est_archive': c.estArchive ? 1 : 0,
+                  'enseignant_nom': c.enseignantNom,
+                  'enseignant_prenom': c.enseignantPrenom,
+                  'filiere': c.filiere,
+                  'niveau': c.niveau,
+                },
+              )
+              .toList();
         }
 
         if (endpoint.contains('/presences/stats')) {
@@ -72,17 +76,19 @@ class ApiService {
         if (endpoint.contains('/presences/historique')) {
           final pending = await db.getPendingPresences();
           return pending
-              .map((p) => PresenceModel(
-                    id: p.id,
-                    etudiantId: p.etudiantId,
-                    coursId: p.coursId,
-                    date: p.date,
-                    heurePointage: p.heurePointage,
-                    latitude: p.latitude,
-                    longitude: p.longitude,
-                    biometrieValidee: p.biometrieValidee,
-                    syncServeur: false,
-                  ).toJson())
+              .map(
+                (p) => PresenceModel(
+                  id: p.id,
+                  etudiantId: p.etudiantId,
+                  coursId: p.coursId,
+                  date: p.date,
+                  heurePointage: p.heurePointage,
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  biometrieValidee: p.biometrieValidee,
+                  syncServeur: false,
+                ).toJson(),
+              )
               .toList();
         }
         return null;
@@ -117,7 +123,10 @@ class ApiService {
   }
 
   // POST
-  static Future<dynamic> post(String endpoint, Map<String, dynamic> body) async {
+  static Future<dynamic> post(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
       if (offlineMode) {
         // Save presence locally when posting to presences endpoints
@@ -127,10 +136,17 @@ class ApiService {
             etudiantId: body['etudiant_id'] ?? body['etudiantId'] ?? 0,
             coursId: body['cours_id'] ?? body['coursId'] ?? 0,
             date: body['date'] ?? '',
-            heurePointage: body['heure_pointage'] ?? body['heurePointage'] ?? '',
-            latitude: body['latitude'] != null ? double.parse(body['latitude'].toString()) : null,
-            longitude: body['longitude'] != null ? double.parse(body['longitude'].toString()) : null,
-            biometrieValidee: body['biometrie_validee'] == 1 || body['biometrie_validee'] == true,
+            heurePointage:
+                body['heure_pointage'] ?? body['heurePointage'] ?? '',
+            latitude: body['latitude'] != null
+                ? double.parse(body['latitude'].toString())
+                : null,
+            longitude: body['longitude'] != null
+                ? double.parse(body['longitude'].toString())
+                : null,
+            biometrieValidee:
+                body['biometrie_validee'] == 1 ||
+                body['biometrie_validee'] == true,
             deviceToken: body['deviceToken'],
             faceImageBase64: body['faceImageBase64'],
           );

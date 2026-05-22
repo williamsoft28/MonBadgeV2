@@ -41,7 +41,10 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     await ApiService.setOfflineMode(enabled);
     if (mounted) {
       setState(() => _offlineEnabled = enabled);
-      Helpers.showSuccess(context, enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé');
+      Helpers.showSuccess(
+        context,
+        enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé',
+      );
     }
   }
 
@@ -60,8 +63,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.green))
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : SafeArea(
               child: RefreshIndicator(
                 onRefresh: _loadData,
@@ -122,11 +124,7 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.green.withOpacity(0.2)),
             ),
-            child: Icon(
-              Icons.logout,
-              color: Colors.green[800],
-              size: 18,
-            ),
+            child: Icon(Icons.logout, color: Colors.green[800], size: 18),
           ),
         ),
       ],
@@ -144,9 +142,18 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
     return Column(
       children: [
-        Text('Utilisateurs : ${_stats['users'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
-        Text('Cours : ${_stats['cours'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
-        Text('Présences : ${_stats['presences'] ?? 0}', style: Theme.of(context).textTheme.titleLarge),
+        Text(
+          'Utilisateurs : ${_stats['users'] ?? 0}',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        Text(
+          'Cours : ${_stats['cours'] ?? 0}',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
+        Text(
+          'Présences : ${_stats['presences'] ?? 0}',
+          style: Theme.of(context).textTheme.titleLarge,
+        ),
       ],
     );
   }
@@ -204,7 +211,11 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   }
 
   Widget _buildStatCard(
-      String value, String label, IconData icon, Color color) {
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+  ) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(20),

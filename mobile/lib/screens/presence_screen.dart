@@ -89,15 +89,17 @@ class _PresenceScreenState extends State<PresenceScreen>
     if (position == null) {
       position = await LocationService.getCurrentPosition();
     }
-    
+
     if (position == null) {
       _setStatus('error', 'Impossible d\'obtenir votre position GPS');
       return;
     }
 
     final dansLaSalle = LocationService.estDansLaSalle(
-      position.latitude, position.longitude,
-      widget.cours.latitude, widget.cours.longitude,
+      position.latitude,
+      position.longitude,
+      widget.cours.latitude,
+      widget.cours.longitude,
     );
 
     if (!dansLaSalle) {
@@ -117,7 +119,10 @@ class _PresenceScreenState extends State<PresenceScreen>
     );
 
     if (photo == null) {
-      _setStatus('error', 'Vous devez prendre une photo pour valider la présence');
+      _setStatus(
+        'error',
+        'Vous devez prendre une photo pour valider la présence',
+      );
       return;
     }
 
@@ -160,9 +165,13 @@ class _PresenceScreenState extends State<PresenceScreen>
     }
 
     final response = await ApiService.post('/presences/pointer', body);
-    if (response != null && (response['success'] == true || response['offline'] == true)) {
+    if (response != null &&
+        (response['success'] == true || response['offline'] == true)) {
       if (response['offline'] == true) {
-        _setStatus('offline', 'Présence sauvegardée hors ligne (Photo incluse)');
+        _setStatus(
+          'offline',
+          'Présence sauvegardée hors ligne (Photo incluse)',
+        );
       } else {
         _setStatus('success', 'Présence enregistrée avec succès !');
       }
@@ -182,21 +191,31 @@ class _PresenceScreenState extends State<PresenceScreen>
 
   Color get _statusColor {
     switch (_status) {
-      case 'success': return Colors.green[600]!;
-      case 'error': return Colors.red;
-      case 'offline': return Colors.orange;
-      case 'locked': return Colors.grey;
-      default: return Colors.green;
+      case 'success':
+        return Colors.green[600]!;
+      case 'error':
+        return Colors.red;
+      case 'offline':
+        return Colors.orange;
+      case 'locked':
+        return Colors.grey;
+      default:
+        return Colors.green;
     }
   }
 
   IconData get _statusIcon {
     switch (_status) {
-      case 'success': return Icons.check_circle_outline;
-      case 'error': return Icons.error_outline;
-      case 'offline': return Icons.cloud_off_outlined;
-      case 'locked': return Icons.lock_outline;
-      default: return Icons.fingerprint;
+      case 'success':
+        return Icons.check_circle_outline;
+      case 'error':
+        return Icons.error_outline;
+      case 'offline':
+        return Icons.cloud_off_outlined;
+      case 'locked':
+        return Icons.lock_outline;
+      default:
+        return Icons.fingerprint;
     }
   }
 
@@ -213,7 +232,11 @@ class _PresenceScreenState extends State<PresenceScreen>
         ),
         title: Text(
           'Prendre présence',
-          style: TextStyle(color: Colors.green[900], fontSize: 16, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            color: Colors.green[900],
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+          ),
         ),
       ),
       body: SafeArea(
@@ -245,8 +268,11 @@ class _PresenceScreenState extends State<PresenceScreen>
                         color: Colors.green.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(14),
                       ),
-                      child: const Icon(Icons.book_outlined,
-                          color: Colors.green, size: 24),
+                      child: const Icon(
+                        Icons.book_outlined,
+                        color: Colors.green,
+                        size: 24,
+                      ),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -287,7 +313,9 @@ class _PresenceScreenState extends State<PresenceScreen>
 
               // Bouton principal biométrie
               ScaleTransition(
-                scale: _status == 'idle' ? _pulseAnim : const AlwaysStoppedAnimation(1.0),
+                scale: _status == 'idle'
+                    ? _pulseAnim
+                    : const AlwaysStoppedAnimation(1.0),
                 child: GestureDetector(
                   onTap: (_isLoading || _status == 'locked') ? null : _pointer,
                   child: Container(
@@ -307,11 +335,7 @@ class _PresenceScreenState extends State<PresenceScreen>
                               color: _statusColor,
                               strokeWidth: 3,
                             )
-                          : Icon(
-                              _statusIcon,
-                              color: _statusColor,
-                              size: 80,
-                            ),
+                          : Icon(_statusIcon, color: _statusColor, size: 80),
                     ),
                   ),
                 ),
@@ -332,9 +356,7 @@ class _PresenceScreenState extends State<PresenceScreen>
               const SizedBox(height: 12),
 
               Text(
-                _status == 'idle'
-                    ? 'Appuyez sur le bouton pour badger'
-                    : '',
+                _status == 'idle' ? 'Appuyez sur le bouton pour badger' : '',
                 style: TextStyle(
                   color: Colors.green[800]?.withOpacity(0.4),
                   fontSize: 13,
@@ -360,11 +382,23 @@ class _PresenceScreenState extends State<PresenceScreen>
                 ),
                 child: Column(
                   children: [
-                    _buildStep(Icons.location_on_outlined, 'Géolocalisation GPS', 1),
+                    _buildStep(
+                      Icons.location_on_outlined,
+                      'Géolocalisation GPS',
+                      1,
+                    ),
                     const SizedBox(height: 12),
-                    _buildStep(Icons.fingerprint, 'Authentification biométrique', 2),
+                    _buildStep(
+                      Icons.fingerprint,
+                      'Authentification biométrique',
+                      2,
+                    ),
                     const SizedBox(height: 12),
-                    _buildStep(Icons.cloud_done_outlined, 'Enregistrement présence', 3),
+                    _buildStep(
+                      Icons.cloud_done_outlined,
+                      'Enregistrement présence',
+                      3,
+                    ),
                   ],
                 ),
               ),

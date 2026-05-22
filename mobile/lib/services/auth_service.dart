@@ -7,11 +7,10 @@ import 'api_service.dart';
 class AuthService {
   // Connexion
   static Future<Map<String, dynamic>> login(
-      String matricule, String motDePasse) async {
-    final body = {
-      'matricule': matricule,
-      'mot_de_passe': motDePasse,
-    };
+    String matricule,
+    String motDePasse,
+  ) async {
+    final body = {'matricule': matricule, 'mot_de_passe': motDePasse};
 
     final response = await ApiService.post('/auth/login', body);
 
@@ -26,7 +25,10 @@ class AuthService {
       return {'success': true, 'user': response['user']};
     }
 
-    return {'success': false, 'message': response['error'] ?? 'Erreur connexion'};
+    return {
+      'success': false,
+      'message': response['error'] ?? 'Erreur connexion',
+    };
   }
 
   // Déconnexion
@@ -53,7 +55,10 @@ class AuthService {
   }
 
   // --- Fonctions pour la biométrie ---
-  static Future<void> saveCredentials(String matricule, String deviceToken) async {
+  static Future<void> saveCredentials(
+    String matricule,
+    String deviceToken,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('saved_matricule', matricule);
     await prefs.setString('device_token', deviceToken);
@@ -74,11 +79,11 @@ class AuthService {
   }
 
   // Connexion Biométrique
-  static Future<Map<String, dynamic>> loginBiometric(String matricule, String deviceToken) async {
-    final body = {
-      'matricule': matricule,
-      'deviceToken': deviceToken,
-    };
+  static Future<Map<String, dynamic>> loginBiometric(
+    String matricule,
+    String deviceToken,
+  ) async {
+    final body = {'matricule': matricule, 'deviceToken': deviceToken};
 
     final response = await ApiService.post('/auth/login-biometric', body);
 
@@ -93,6 +98,9 @@ class AuthService {
       return {'success': true, 'user': response['user']};
     }
 
-    return {'success': false, 'message': response['error'] ?? 'Erreur connexion'};
+    return {
+      'success': false,
+      'message': response['error'] ?? 'Erreur connexion',
+    };
   }
 }

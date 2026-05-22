@@ -47,7 +47,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await ApiService.setOfflineMode(enabled);
     if (mounted) {
       setState(() => _offlineEnabled = enabled);
-      Helpers.showSuccess(context, enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé');
+      Helpers.showSuccess(
+        context,
+        enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé',
+      );
     }
   }
 
@@ -66,31 +69,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
     try {
       final response = await ApiService.get('/cours/jour');
       if (response != null && response is List) {
-        final List<CoursModel> fetchedCours = response.map((c) => CoursModel.fromJson(c)).toList();
+        final List<CoursModel> fetchedCours = response
+            .map((c) => CoursModel.fromJson(c))
+            .toList();
         setState(() {
           _cours = fetchedCours;
         });
-        
+
         // Save to Drift for offline use
         final db = OfflineService.getDB();
         await db.clearCours();
-        final entities = fetchedCours.map((c) => CoursEntity(
-          id: c.id,
-          nom: c.nom,
-          enseignantId: c.enseignantId,
-          salle: c.salle,
-          latitude: c.latitude,
-          longitude: c.longitude,
-          rayonMetres: c.rayonMetres,
-          heureDebut: c.heureDebut,
-          heureFin: c.heureFin,
-          dateCours: c.dateCours,
-          estArchive: c.estArchive,
-          enseignantNom: c.enseignantNom,
-          enseignantPrenom: c.enseignantPrenom,
-          filiere: c.filiere,
-          niveau: c.niveau,
-        )).toList();
+        final entities = fetchedCours
+            .map(
+              (c) => CoursEntity(
+                id: c.id,
+                nom: c.nom,
+                enseignantId: c.enseignantId,
+                salle: c.salle,
+                latitude: c.latitude,
+                longitude: c.longitude,
+                rayonMetres: c.rayonMetres,
+                heureDebut: c.heureDebut,
+                heureFin: c.heureFin,
+                dateCours: c.dateCours,
+                estArchive: c.estArchive,
+                enseignantNom: c.enseignantNom,
+                enseignantPrenom: c.enseignantPrenom,
+                filiere: c.filiere,
+                niveau: c.niveau,
+              ),
+            )
+            .toList();
         await db.insertCours(entities);
       } else {
         await _loadCoursOffline();
@@ -104,23 +113,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final db = OfflineService.getDB();
     final entities = await db.getAllCours();
     setState(() {
-      _cours = entities.map((e) => CoursModel(
-        id: e.id,
-        nom: e.nom,
-        enseignantId: e.enseignantId,
-        salle: e.salle,
-        latitude: e.latitude,
-        longitude: e.longitude,
-        rayonMetres: e.rayonMetres,
-        heureDebut: e.heureDebut,
-        heureFin: e.heureFin,
-        dateCours: e.dateCours,
-        estArchive: e.estArchive,
-        enseignantNom: e.enseignantNom,
-        enseignantPrenom: e.enseignantPrenom,
-        filiere: e.filiere,
-        niveau: e.niveau,
-      )).toList();
+      _cours = entities
+          .map(
+            (e) => CoursModel(
+              id: e.id,
+              nom: e.nom,
+              enseignantId: e.enseignantId,
+              salle: e.salle,
+              latitude: e.latitude,
+              longitude: e.longitude,
+              rayonMetres: e.rayonMetres,
+              heureDebut: e.heureDebut,
+              heureFin: e.heureFin,
+              dateCours: e.dateCours,
+              estArchive: e.estArchive,
+              enseignantNom: e.enseignantNom,
+              enseignantPrenom: e.enseignantPrenom,
+              filiere: e.filiere,
+              niveau: e.niveau,
+            ),
+          )
+          .toList();
     });
   }
 
@@ -139,8 +152,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Colors.green))
+          ? const Center(child: CircularProgressIndicator(color: Colors.green))
           : SafeArea(
               child: RefreshIndicator(
                 onRefresh: _loadData,
@@ -211,9 +223,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     offset: const Offset(0, 4),
                   ),
                 ],
-                border: Border.all(
-                  color: Colors.green.withOpacity(0.15),
-                ),
+                border: Border.all(color: Colors.green.withOpacity(0.15)),
               ),
               child: Text(
                 _user?.role.toUpperCase() ?? '',
@@ -243,11 +253,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   ],
                   border: Border.all(color: Colors.red.withOpacity(0.15)),
                 ),
-                child: Icon(
-                  Icons.logout,
-                  color: Colors.red[400],
-                  size: 20,
-                ),
+                child: Icon(Icons.logout, color: Colors.red[400], size: 20),
               ),
             ),
           ],
@@ -376,7 +382,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 child: Center(
                   child: Text(
                     'Aucun cours aujourd\'hui',
-                    style: GoogleFonts.inter(color: Colors.green.withOpacity(0.6)),
+                    style: GoogleFonts.inter(
+                      color: Colors.green.withOpacity(0.6),
+                    ),
                   ),
                 ),
               )
@@ -411,14 +419,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 16),
             ListTile(
               leading: const Icon(Icons.download_outlined, color: Colors.green),
-              title: Text('Générer le rapport de présence (CSV)', style: GoogleFonts.inter()),
+              title: Text(
+                'Générer le rapport de présence (CSV)',
+                style: GoogleFonts.inter(),
+              ),
               onTap: () async {
                 Navigator.pop(context);
-                final response = await ApiService.getRaw('/cours/${cours.id}/report');
+                final response = await ApiService.getRaw(
+                  '/cours/${cours.id}/report',
+                );
                 if (response != null) {
-                  if (mounted) Helpers.showSuccess(context, 'Rapport CSV généré et téléchargé (simulation)');
+                  if (mounted)
+                    Helpers.showSuccess(
+                      context,
+                      'Rapport CSV généré et téléchargé (simulation)',
+                    );
                 } else {
-                  if (mounted) Helpers.showError(context, 'Erreur lors de la génération du rapport');
+                  if (mounted)
+                    Helpers.showError(
+                      context,
+                      'Erreur lors de la génération du rapport',
+                    );
                 }
               },
             ),
@@ -437,9 +458,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         } else {
           await Navigator.push(
             context,
-            MaterialPageRoute(
-              builder: (_) => PresenceScreen(cours: cours),
-            ),
+            MaterialPageRoute(builder: (_) => PresenceScreen(cours: cours)),
           );
           // Recharger les données (stats) au retour
           _loadData();
@@ -470,7 +489,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 color: Colors.green.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(Icons.book_outlined, color: Colors.green, size: 22),
+              child: const Icon(
+                Icons.book_outlined,
+                color: Colors.green,
+                size: 22,
+              ),
             ),
             const SizedBox(width: 16),
             Expanded(
