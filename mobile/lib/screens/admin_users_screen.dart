@@ -20,8 +20,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
   final _matriculeController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _filiereController = TextEditingController();
   final _niveauController = TextEditingController();
+  final _matiereController = TextEditingController();
+  String? _filiere;
   String _role = 'etudiant';
 
   @override
@@ -37,8 +38,8 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     _matriculeController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _filiereController.dispose();
     _niveauController.dispose();
+    _matiereController.dispose();
     super.dispose();
   }
 
@@ -73,8 +74,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       'mot_de_passe': _passwordController.text,
       'role': _role,
       'matricule': _matriculeController.text.trim(),
-      'filiere': _filiereController.text.trim(),
+      'filiere': _filiere,
       'niveau': _niveauController.text.trim(),
+      'matiere': _matiereController.text.trim(),
     };
     print('Données envoyées : $userData');
 
@@ -99,8 +101,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
     _matriculeController.clear();
     _emailController.clear();
     _passwordController.clear();
-    _filiereController.clear();
     _niveauController.clear();
+    _matiereController.clear();
+    _filiere = null;
     setState(() => _role = 'etudiant');
   }
 
@@ -128,8 +131,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
       'email': _emailController.text,
       'role': _role,
       'matricule': _matriculeController.text.trim(),
-      'filiere': _filiereController.text.trim(),
+      'filiere': _filiere,
       'niveau': _niveauController.text.trim(),
+      'matiere': _matiereController.text.trim(),
     };
 
     final response = await ApiService.put('/admin/users/$id', userData);
@@ -327,10 +331,30 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                           children: [
                             _buildModalLabel('Filière'),
                             const SizedBox(height: 8),
-                            _buildModalTextField(
-                              _filiereController,
-                              'Info',
-                              Icons.school_outlined,
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: Colors.green.withOpacity(0.3)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _filiere,
+                                  hint: Text('Filière', style: TextStyle(color: Colors.green.withOpacity(0.4), fontSize: 13)),
+                                  dropdownColor: Colors.white,
+                                  style: TextStyle(color: Colors.green[800]),
+                                  isExpanded: true,
+                                  icon: Icon(Icons.arrow_drop_down, color: Colors.green),
+                                  items: [null, 'Droit', 'Banque', 'Finance']
+                                      .map((f) => DropdownMenuItem(value: f, child: Text(f ?? 'Aucune')))
+                                      .toList(),
+                                  onChanged: (value) {
+                                    setState(() => _filiere = value);
+                                    setModalState(() => _filiere = value);
+                                  },
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -371,6 +395,17 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                         ),
                       ),
                     ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
+                if (_role == 'enseignant') ...[
+                  _buildModalLabel('Matière enseignée'),
+                  const SizedBox(height: 8),
+                  _buildModalTextField(
+                    _matiereController,
+                    'Algorithmique',
+                    Icons.book_outlined,
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -673,8 +708,9 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                                   _matriculeController.text = user.matricule;
                                   _emailController.text = user.email;
                                   _role = user.role;
-                                  _filiereController.text = user.filiere ?? '';
+                                  _filiere = user.filiere;
                                   _niveauController.text = user.niveau ?? '';
+                                  _matiereController.text = user.matiere ?? '';
                                   _showCreateModal(userToEdit: user);
                                 },
                                 child: Icon(

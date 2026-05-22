@@ -1,7 +1,7 @@
 class Constants {
   // URL de base de l'API (Assurez-vous que l'URL ngrok est à jour ou utilisez votre IP locale)
   // Pour l'émulateur Android en local : 'http://10.0.2.2:3000/api'
-  static const String baseUrl = 'https://7485-102-180-78-168.ngrok-free.app/api';
+  static const String baseUrl = 'https://cb33-102-23-56-160.ngrok-free.app/api';
 
   // Clés SharedPreferences
   static const String tokenKey = 'token';

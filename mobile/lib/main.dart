@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'services/auth_service.dart';
+import 'services/api_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/admin_dashboard_screen.dart';
@@ -10,9 +12,10 @@ void main() async {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
+      statusBarIconBrightness: Brightness.dark,
     ),
   );
+  await ApiService.initOfflineMode();
   runApp(const MonBadgeApp());
 }
 
@@ -26,12 +29,14 @@ class MonBadgeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.dark(
-          primary: const Color(0xFF6C63FF),
-          secondary: const Color(0xFF00D4AA),
-          surface: const Color(0xFF1A1A2E),
-          background: const Color(0xFF0A0A0F),
+        textTheme: GoogleFonts.interTextTheme(Theme.of(context).textTheme),
+        colorScheme: ColorScheme.light(
+          primary: Colors.green[700]!,
+          secondary: Colors.greenAccent[700]!,
+          surface: Colors.white,
+          background: const Color(0xFFF8FAF9), // Très léger gris/vert
         ),
+        scaffoldBackgroundColor: const Color(0xFFF8FAF9),
       ),
       home: const SplashScreen(),
     );
@@ -49,6 +54,7 @@ class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
+  late Animation<double> _scaleAnim;
 
   @override
   void initState() {
@@ -57,7 +63,12 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
       duration: const Duration(milliseconds: 1500),
     );
-    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(_controller);
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+    _scaleAnim = Tween<double>(begin: 0.8, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
     _controller.forward();
     _checkAuth();
   }
@@ -70,12 +81,13 @@ class _SplashScreenState extends State<SplashScreen>
       if (mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(
-            builder: (_) => isLoggedIn
+          PageRouteBuilder(
+            pageBuilder: (_, __, ___) => isLoggedIn
                 ? (user?.role == 'admin'
                     ? const AdminDashboardScreen()
                     : const DashboardScreen())
                 : const LoginScreen(),
+            transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
           ),
         );
       }
@@ -98,49 +110,60 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: Colors.white,
       body: FadeTransition(
         opacity: _fadeAnim,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(28),
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF6C63FF), Color(0xFF00D4AA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+        child: ScaleTransition(
+          scale: _scaleAnim,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(32),
+                    gradient: LinearGradient(
+                      colors: [Colors.green[400]!, Colors.green[800]!],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.green.withOpacity(0.3),
+                        blurRadius: 30,
+                        offset: const Offset(0, 15),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(
+                    Icons.fingerprint,
+                    color: Colors.white,
+                    size: 60,
                   ),
                 ),
-                child: const Icon(
-                  Icons.fingerprint,
-                  color: Colors.white,
-                  size: 52,
+                const SizedBox(height: 32),
+                Text(
+                  'MonBadge',
+                  style: GoogleFonts.outfit(
+                    color: Colors.green[900],
+                    fontSize: 40,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -1.2,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'MonBadge',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -1,
+                const SizedBox(height: 8),
+                Text(
+                  'Badgez en un geste, partout et toujours',
+                  style: TextStyle(
+                    color: Colors.green[800]?.withOpacity(0.6),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Badgez en un geste, partout et toujours',
-                style: TextStyle(
-                  color: Colors.white.withOpacity(0.4),
-                  fontSize: 14,
-                ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

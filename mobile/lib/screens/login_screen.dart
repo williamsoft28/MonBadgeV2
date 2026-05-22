@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../utils/helpers.dart';
 import 'dashboard_screen.dart';
@@ -17,10 +18,8 @@ class _LoginScreenState extends State<LoginScreen>
     with SingleTickerProviderStateMixin {
   final _matriculeController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _codeAdminController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _obscureCode = true;
   bool _showAdminFields = false;
   late AnimationController _animController;
   late Animation<double> _fadeAnim;
@@ -96,7 +95,6 @@ class _LoginScreenState extends State<LoginScreen>
     _animController.dispose();
     _matriculeController.dispose();
     _passwordController.dispose();
-    _codeAdminController.dispose();
     super.dispose();
   }
 
@@ -119,16 +117,9 @@ class _LoginScreenState extends State<LoginScreen>
     final result = await AuthService.login(
       matricule,
       password,
-      codeAdmin: _showAdminFields ? _codeAdminController.text : null,
     );
 
     setState(() => _isLoading = false);
-
-    // Si admin mais code non fourni
-    if (result['needAdminCode'] == true) {
-      Helpers.showError(context, 'Entrez votre code administrateur');
-      return;
-    }
 
     if (result['success']) {
       final user = await AuthService.getCurrentUser();
@@ -161,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: const Color(0xFFF8FAF9),
       body: Stack(
         children: [
           // Animated Background Circles
@@ -175,7 +166,7 @@ class _LoginScreenState extends State<LoginScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.green.withOpacity(0.15),
+                    Colors.green.withOpacity(0.12),
                     Colors.transparent,
                   ],
                 ),
@@ -192,7 +183,7 @@ class _LoginScreenState extends State<LoginScreen>
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    Colors.lightGreen.withOpacity(0.15),
+                    Colors.lightGreen.withOpacity(0.1),
                     Colors.transparent,
                   ],
                 ),
@@ -200,25 +191,6 @@ class _LoginScreenState extends State<LoginScreen>
             ),
           ),
           
-          // Background Logo
-          Center(
-            child: Opacity(
-              opacity: 0.05,
-              child: Image.asset(
-                'assets/images/logo.png',
-                width: 300,
-                height: 300,
-                fit: BoxFit.contain,
-                errorBuilder: (context, error, stackTrace) {
-                  return Icon(
-                    Icons.school,
-                    size: 300,
-                    color: Colors.green.withOpacity(0.5),
-                  );
-                },
-              ),
-            ),
-          ),
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -238,34 +210,45 @@ class _LoginScreenState extends State<LoginScreen>
                               height: 90,
                               decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.circular(24),
+                                borderRadius: BorderRadius.circular(28),
                                 boxShadow: [
                                   BoxShadow(
                                     color: Colors.green.withOpacity(0.15),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 10),
+                                    blurRadius: 24,
+                                    offset: const Offset(0, 12),
                                   ),
                                 ],
-                                border: Border.all(color: Colors.green.withOpacity(0.1)),
+                                border: Border.all(color: Colors.green.withOpacity(0.08)),
                               ),
                               child: Center(
                                 child: Image.asset(
                                   'assets/images/logo.png',
-                                  width: 60,
-                                  height: 60,
+                                  width: 50,
+                                  height: 50,
                                   errorBuilder: (context, error, stackTrace) => 
-                                    const Icon(Icons.school, color: Colors.green, size: 42),
+                                    Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [Colors.green[400]!, Colors.green[800]!],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16)
+                                      ),
+                                      width: 50, height: 50,
+                                      child: const Icon(Icons.fingerprint, color: Colors.white, size: 30),
+                                    ),
                                 ),
                               ),
                             ),
-                            const SizedBox(height: 20),
+                            const SizedBox(height: 24),
                             Text(
                               'MonBadge',
-                              style: TextStyle(
+                              style: GoogleFonts.outfit(
                                 color: Colors.green[900],
-                                fontSize: 32,
+                                fontSize: 36,
                                 fontWeight: FontWeight.w800,
-                                letterSpacing: -0.5,
+                                letterSpacing: -1,
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -284,17 +267,18 @@ class _LoginScreenState extends State<LoginScreen>
                       Container(
                         padding: const EdgeInsets.all(32),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.95),
+                          color: Colors.white.withOpacity(0.9),
                           borderRadius: BorderRadius.circular(32),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.green.withOpacity(0.08),
+                              color: Colors.green.withOpacity(0.06),
                               blurRadius: 30,
                               offset: const Offset(0, 10),
                             ),
                           ],
                           border: Border.all(
-                            color: Colors.green.withOpacity(0.15),
+                            color: Colors.white,
+                            width: 2,
                           ),
                         ),
                         child: Column(
@@ -302,18 +286,19 @@ class _LoginScreenState extends State<LoginScreen>
                           children: [
                             Text(
                               'Connexion',
-                              style: TextStyle(
+                              style: GoogleFonts.outfit(
                                 color: Colors.green[900],
-                                fontSize: 24,
+                                fontSize: 26,
                                 fontWeight: FontWeight.w700,
+                                letterSpacing: -0.5,
                               ),
                             ),
                             const SizedBox(height: 6),
                             Text(
                               'Entrez vos identifiants pour continuer',
                               style: TextStyle(
-                                color: Colors.green[800]?.withOpacity(0.7),
-                                fontSize: 13,
+                                color: Colors.green[800]?.withOpacity(0.6),
+                                fontSize: 14,
                               ),
                             ),
                             const SizedBox(height: 28),
@@ -325,7 +310,7 @@ class _LoginScreenState extends State<LoginScreen>
                               icon: Icons.badge_outlined,
                             ),
                             const SizedBox(height: 20),
-                            // Champs Administrateur (Mot de passe + Code Admin)
+                            // Champs Administrateur (Mot de passe)
                             AnimatedSize(
                               duration: const Duration(milliseconds: 300),
                               curve: Curves.easeInOut,
@@ -341,42 +326,6 @@ class _LoginScreenState extends State<LoginScreen>
                                     icon: Icons.lock_outline,
                                     isPassword: true,
                                   ),
-                                  const SizedBox(height: 20),
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(12),
-                                      border: Border.all(
-                                        color: Colors.orange.withOpacity(0.3),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      children: [
-                                        const Icon(Icons.admin_panel_settings,
-                                            color: Colors.orange, size: 18),
-                                        const SizedBox(width: 8),
-                                        Text(
-                                          'Code administrateur requis',
-                                          style: TextStyle(
-                                            color: Colors.orange[800],
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 12),
-                                  _buildLabel('Code administrateur'),
-                                  const SizedBox(height: 8),
-                                  _buildTextField(
-                                    controller: _codeAdminController,
-                                    hint: '••••••••••••',
-                                    icon: Icons.vpn_key_outlined,
-                                    isPassword: true,
-                                    isAdminCode: true,
-                                  ),
                                 ],
                               ) : const SizedBox.shrink(),
                             ),
@@ -389,8 +338,8 @@ class _LoginScreenState extends State<LoginScreen>
                                 onPressed: _isLoading ? null : _login,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.green.withOpacity(0.3),
-                                  elevation: 8,
+                                  shadowColor: Colors.transparent,
+                                  elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(16),
                                   ),
@@ -398,8 +347,19 @@ class _LoginScreenState extends State<LoginScreen>
                                 ),
                                 child: Ink(
                                   decoration: BoxDecoration(
-                                    color: Colors.green,
+                                    gradient: LinearGradient(
+                                      colors: [Colors.green[400]!, Colors.green[700]!],
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                    ),
                                     borderRadius: BorderRadius.circular(16),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.green.withOpacity(0.4),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
                                   ),
                                   child: Center(
                                     child: _isLoading
@@ -411,9 +371,9 @@ class _LoginScreenState extends State<LoginScreen>
                                               strokeWidth: 2,
                                             ),
                                           )
-                                        : const Text(
+                                        : Text(
                                             'Se connecter',
-                                            style: TextStyle(
+                                            style: GoogleFonts.inter(
                                               color: Colors.white,
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700,
@@ -432,7 +392,7 @@ class _LoginScreenState extends State<LoginScreen>
                         child: Text(
                           'MonBadge v1.0 — Université',
                           style: TextStyle(
-                            color: Colors.green[800]?.withOpacity(0.5),
+                            color: Colors.green[800]?.withOpacity(0.4),
                             fontSize: 12,
                             fontWeight: FontWeight.w500,
                           ),
@@ -466,47 +426,41 @@ class _LoginScreenState extends State<LoginScreen>
     required String hint,
     required IconData icon,
     bool isPassword = false,
-    bool isAdminCode = false,
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.green.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(14),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: isAdminCode
-              ? Colors.orange.withOpacity(0.4)
-              : Colors.green.withOpacity(0.2),
+          color: Colors.green.withOpacity(0.15),
         ),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.green.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: TextField(
         controller: controller,
-        obscureText: isPassword
-            ? (isAdminCode ? _obscureCode : _obscurePassword)
-            : false,
+        obscureText: isPassword ? _obscurePassword : false,
         style: TextStyle(color: Colors.green[900], fontSize: 15, fontWeight: FontWeight.w500),
         decoration: InputDecoration(
           hintText: hint,
-          hintStyle: TextStyle(color: Colors.green[800]?.withOpacity(0.4)),
-          prefixIcon: Icon(icon,
-              color: isAdminCode
-                  ? Colors.orange
-                  : Colors.green,
-              size: 20),
+          hintStyle: TextStyle(color: Colors.green[800]?.withOpacity(0.3)),
+          prefixIcon: Icon(icon, color: Colors.green[600], size: 22),
           suffixIcon: isPassword
               ? IconButton(
                   icon: Icon(
-                    (isAdminCode ? _obscureCode : _obscurePassword)
+                    _obscurePassword
                         ? Icons.visibility_off
                         : Icons.visibility,
-                    color: Colors.green.withOpacity(0.5),
+                    color: Colors.green.withOpacity(0.4),
                     size: 20,
                   ),
                   onPressed: () => setState(() {
-                    if (isAdminCode) {
-                      _obscureCode = !_obscureCode;
-                    } else {
-                      _obscurePassword = !_obscurePassword;
-                    }
+                    _obscurePassword = !_obscurePassword;
                   }),
                 )
               : null,

@@ -45,10 +45,14 @@ const getFaceDescriptor = async (base64Image) => {
 };
 
 const compareFaces = (descriptor1, descriptor2) => {
-  // Return the euclidean distance (lower means more similar)
-  // Threshold is usually 0.6. Below 0.6 = match.
-  const dist = faceapi.euclideanDistance(descriptor1, descriptor2);
-  return dist;
+  if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
+    return NaN;
+  }
+  let dist = 0;
+  for (let i = 0; i < descriptor1.length; i++) {
+    dist += Math.pow(descriptor1[i] - descriptor2[i], 2);
+  }
+  return Math.sqrt(dist);
 };
 
 module.exports = {

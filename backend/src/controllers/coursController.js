@@ -33,13 +33,13 @@ exports.getAllCours = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?)`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND c.niveau = ?`;
         params.push(niveau);
       }
     } else if (req.user && req.user.role === 'enseignant') {
@@ -70,6 +70,9 @@ exports.getCoursDuJour = async (req, res) => {
 
     // Filtrer par niveau et filière si c'est un étudiant
     if (req.user && req.user.role === 'etudiant') {
+      // Les étudiants continuent de voir les cours toute la journée, même une fois l'heure passée
+      // query += ` AND c.heure_fin >= CURTIME()`;
+
       let filiere = req.user.filiere;
       let niveau = req.user.niveau;
       
@@ -82,13 +85,13 @@ exports.getCoursDuJour = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?)`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND c.niveau = ?`;
         params.push(niveau);
       }
     } else if (req.user && req.user.role === 'enseignant') {

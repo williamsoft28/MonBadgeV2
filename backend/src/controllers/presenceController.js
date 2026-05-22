@@ -16,45 +16,6 @@ exports.pointerPresence = async (req, res) => {
       return res.status(404).json({ error: '❌ Cours non trouvé' });
     }
 
-    // Vérifier la géolocalisation
-    const distance = calculerDistance(
-      latitude, longitude,
-      cours[0].latitude, cours[0].longitude
-    );
-
-    if (distance > cours[0].rayon_metres) {
-      return res.status(403).json({ 
-        error: `❌ Vous êtes trop loin de la salle (${Math.round(distance)}m)` 
-      });
-    }
-
-    // Vérifier le Timing (Verrouillage du cours)
-    // cours[0].date_cours est un objet Date MySQL, on prend sa string (ex: '2026-05-13')
-    // Pour être sûr du format :
-    const d = new Date(cours[0].date_cours);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-    
-    const timeDebut = new Date(`${dateStr}T${cours[0].heure_debut}`);
-    const timeFin = new Date(`${dateStr}T${cours[0].heure_fin}`);
-    const now = new Date();
-
-    const windowStart = new Date(timeDebut.getTime() - 10 * 60000); // 10 min avant
-    const windowEnd = new Date(timeFin.getTime() + 10 * 60000);   // 10 min après la fin
-
-    if (now < windowStart) {
-      return res.status(403).json({ error: "❌ Le cours n'a pas encore commencé. (Prise de présence ouverte 10min avant)." });
-    }
-    if (now > windowEnd) {
-      return res.status(403).json({ error: "❌ Le cours est verrouillé (terminé)." });
-    }
-
-    // Statut : retard si > heure_debut + 10 mins
-    const limitRetard = new Date(timeDebut.getTime() + 10 * 60000);
-    let statut = 'present';
-    if (now > limitRetard) {
-      statut = 'retard';
-    }
-
     // Vérifier biométrie via reconnaissance faciale
     const { faceImageBase64 } = req.body;
     if (!faceImageBase64) {
@@ -75,8 +36,43 @@ exports.pointerPresence = async (req, res) => {
     }
 
     const faceDistance = faceService.compareFaces(savedDescriptor, currentDescriptor);
-    if (faceDistance > 0.6) {
+    if (isNaN(faceDistance) || faceDistance > 0.6) {
       return res.status(403).json({ error: '❌ Visage non reconnu ou différent de celui enregistré.' });
+    }
+
+    // Vérifier la géolocalisation
+    const distance = calculerDistance(
+      latitude, longitude,
+      cours[0].latitude, cours[0].longitude
+    );
+
+    // On s'assure d'avoir au moins 50m de marge pour correspondre à l'application mobile
+    const rayonAutorise = Math.max(cours[0].rayon_metres, 50);
+    if (distance > rayonAutorise) {
+      return res.status(403).json({ 
+        error: `❌ Vous êtes trop loin de la salle (${Math.round(distance)}m)` 
+      });
+    }
+
+    // Vérifier le Timing (Verrouillage du cours)
+    // cours[0].date_cours est un objet Date MySQL, on prend sa string (ex: '2026-05-13')
+    // Pour être sûr du format :
+    const d = new Date(cours[0].date_cours);
+    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    
+    const timeDebut = new Date(`${dateStr}T${cours[0].heure_debut}`);
+    const timeFin = new Date(`${dateStr}T${cours[0].heure_fin}`);
+    const now = new Date();
+
+    // Fenêtre de temps supprimée à la demande de l'utilisateur
+    // L'étudiant peut badger à tout moment
+
+
+    // Statut : retard si > heure_debut + 10 mins
+    const limitRetard = new Date(timeDebut.getTime() + 10 * 60000);
+    let statut = 'present';
+    if (now > limitRetard) {
+      statut = 'retard';
     }
 
     // Vérifier si déjà pointé aujourd'hui

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/user_model.dart';
 import '../models/cours_model.dart';
 import '../services/auth_service.dart';
@@ -25,6 +26,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _presencesStats = 0;
   int _absencesStats = 0;
   String _tauxStats = '0%';
+  bool _offlineEnabled = ApiService.offlineMode;
 
   @override
   void initState() {
@@ -34,10 +36,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadData() async {
     _user = await AuthService.getCurrentUser();
+    _offlineEnabled = ApiService.offlineMode;
     await _loadCours();
     await _loadStats();
     _pendingSync = await OfflineService.countPendingSync();
     setState(() => _isLoading = false);
+  }
+
+  Future<void> _toggleOfflineMode(bool enabled) async {
+    await ApiService.setOfflineMode(enabled);
+    if (mounted) {
+      setState(() => _offlineEnabled = enabled);
+      Helpers.showSuccess(context, enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé');
+    }
   }
 
   Future<void> _loadStats() async {
@@ -141,6 +152,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(),
+                      const SizedBox(height: 16),
+                      _buildOfflineToggle(),
                       const SizedBox(height: 24),
                       if (_pendingSync > 0) _buildSyncBanner(),
                       const SizedBox(height: 24),
@@ -169,15 +182,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               style: TextStyle(
                 color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               '${_user?.prenom} ${_user?.nom}',
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 color: Colors.green[900],
-                fontSize: 22,
+                fontSize: 24,
                 fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
               ),
             ),
           ],
@@ -185,37 +200,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.15),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.green.withOpacity(0.08),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
                 border: Border.all(
-                  color: Colors.green.withOpacity(0.3),
+                  color: Colors.green.withOpacity(0.15),
                 ),
               ),
               child: Text(
                 _user?.role.toUpperCase() ?? '',
-                style: const TextStyle(
-                  color: Colors.green,
+                style: GoogleFonts.inter(
+                  color: Colors.green[700],
                   fontSize: 11,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5,
                 ),
               ),
             ),
-            const SizedBox(width: 10),
+            const SizedBox(width: 12),
             GestureDetector(
               onTap: _logout,
               child: Container(
-                width: 40,
-                height: 40,
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.red.withOpacity(0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                  border: Border.all(color: Colors.red.withOpacity(0.15)),
                 ),
                 child: Icon(
                   Icons.logout,
-                  color: Colors.green[800]?.withOpacity(0.6),
-                  size: 18,
+                  color: Colors.red[400],
+                  size: 20,
                 ),
               ),
             ),
@@ -260,38 +291,46 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         _buildStatCard('$_presencesStats', 'Présences', Colors.green),
         const SizedBox(width: 12),
-        _buildStatCard('$_absencesStats', 'Absences', Colors.red),
+        _buildStatCard('$_absencesStats', 'Absences', Colors.orange),
         const SizedBox(width: 12),
-        _buildStatCard(_tauxStats, 'Taux', Colors.green[700]!),
+        _buildStatCard(_tauxStats, 'Taux', Colors.teal),
       ],
     );
   }
 
-  Widget _buildStatCard(String value, String label, Color color) {
+  Widget _buildStatCard(String value, String label, MaterialColor color) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: color.withOpacity(0.2)),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          boxShadow: [
+            BoxShadow(
+              color: color.withOpacity(0.06),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
+            ),
+          ],
+          border: Border.all(color: color.withOpacity(0.1)),
         ),
         child: Column(
           children: [
             Text(
               value,
-              style: TextStyle(
-                color: color,
-                fontSize: 22,
+              style: GoogleFonts.outfit(
+                color: color[700],
+                fontSize: 28,
                 fontWeight: FontWeight.w700,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(
-                color: Colors.green[800]?.withOpacity(0.6),
-                fontSize: 11,
+              style: GoogleFonts.inter(
+                color: Colors.green[900]?.withOpacity(0.6),
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -309,17 +348,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             Text(
               'Tous mes cours',
-              style: TextStyle(
+              style: GoogleFonts.outfit(
                 color: Colors.green[900],
-                fontSize: 18,
-                fontWeight: FontWeight.w600,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
               ),
             ),
             Text(
               '${_cours.length} cours',
-              style: TextStyle(
+              style: GoogleFonts.inter(
                 color: Colors.green[800]?.withOpacity(0.6),
                 fontSize: 13,
+                fontWeight: FontWeight.w500,
               ),
             ),
           ],
@@ -330,13 +370,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.withOpacity(0.2)),
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: Colors.green.withOpacity(0.1)),
                 ),
                 child: Center(
                   child: Text(
                     'Aucun cours aujourd\'hui',
-                    style: TextStyle(color: Colors.green.withOpacity(0.6)),
+                    style: GoogleFonts.inter(color: Colors.green.withOpacity(0.6)),
                   ),
                 ),
               )
@@ -349,32 +389,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showTeacherOptions(CoursModel cours) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const SizedBox(height: 16),
+            Text(
+              cours.nom,
+              style: GoogleFonts.outfit(
+                color: Colors.green[900],
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.download_outlined, color: Colors.green),
+              title: Text('Générer le rapport de présence (CSV)', style: GoogleFonts.inter()),
+              onTap: () async {
+                Navigator.pop(context);
+                final response = await ApiService.getRaw('/cours/${cours.id}/report');
+                if (response != null) {
+                  if (mounted) Helpers.showSuccess(context, 'Rapport CSV généré et téléchargé (simulation)');
+                } else {
+                  if (mounted) Helpers.showError(context, 'Erreur lors de la génération du rapport');
+                }
+              },
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildCoursCard(CoursModel cours) {
     return GestureDetector(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => PresenceScreen(cours: cours),
-          ),
-        );
+      onTap: () async {
+        if (_user?.role == 'enseignant') {
+          _showTeacherOptions(cours);
+        } else {
+          await Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => PresenceScreen(cours: cours),
+            ),
+          );
+          // Recharger les données (stats) au retour
+          _loadData();
+        }
       },
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
+        margin: const EdgeInsets.only(bottom: 16),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.green.withOpacity(0.2)),
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: Colors.green.withOpacity(0.08)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.02),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.green.withOpacity(0.04),
+              blurRadius: 16,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Container(
               width: 48,
@@ -389,30 +476,42 @@ class _DashboardScreenState extends State<DashboardScreen> {
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     cours.nom,
-                    style: TextStyle(
+                    style: GoogleFonts.outfit(
                       color: Colors.green[900],
-                      fontSize: 15,
+                      fontSize: 16,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}\nProf: ${cours.enseignantPrenom} ${cours.enseignantNom}',
-                    style: TextStyle(
+                    _user?.role == 'enseignant'
+                        ? '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}'
+                        : '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}\nProf: ${cours.enseignantPrenom} ${cours.enseignantNom}',
+                    maxLines: _user?.role == 'enseignant' ? 2 : 3,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
+                    textAlign: TextAlign.start,
+                    style: GoogleFonts.inter(
                       color: Colors.green[800]?.withOpacity(0.6),
                       fontSize: 12,
+                      height: 1.4,
                     ),
                   ),
                 ],
               ),
             ),
-            Icon(
-              Icons.arrow_forward_ios,
-              color: Colors.green.withOpacity(0.3),
-              size: 14,
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 24,
+              child: Icon(
+                Icons.arrow_forward_ios,
+                color: Colors.green.withOpacity(0.3),
+                size: 14,
+              ),
             ),
           ],
         ),
@@ -426,10 +525,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       children: [
         Text(
           'Actions rapides',
-          style: TextStyle(
+          style: GoogleFonts.outfit(
             color: Colors.green[900],
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
           ),
         ),
         const SizedBox(height: 16),
@@ -462,6 +561,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  Widget _buildOfflineToggle() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.green.withOpacity(0.18)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.offline_bolt, color: Colors.orange, size: 24),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Mode hors-ligne',
+                  style: TextStyle(
+                    color: Colors.green[900],
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _offlineEnabled
+                      ? 'Utilisation du cache local pour les données.'
+                      : 'Utilisation du serveur pour toutes les actions.',
+                  style: TextStyle(
+                    color: Colors.green[800]?.withOpacity(0.7),
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(
+            value: _offlineEnabled,
+            activeColor: Colors.green,
+            onChanged: _toggleOfflineMode,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildActionBtn({
     required IconData icon,
     required String label,
@@ -474,20 +627,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
-            color: color.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: color.withOpacity(0.2)),
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: color.withOpacity(0.15)),
+            boxShadow: [
+              BoxShadow(
+                color: color.withOpacity(0.04),
+                blurRadius: 16,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
           child: Column(
             children: [
-              Icon(icon, color: color, size: 26),
-              const SizedBox(height: 8),
+              Icon(icon, color: color, size: 28),
+              const SizedBox(height: 10),
               Text(
                 label,
-                style: TextStyle(
+                style: GoogleFonts.inter(
                   color: color,
                   fontSize: 13,
-                  fontWeight: FontWeight.w500,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

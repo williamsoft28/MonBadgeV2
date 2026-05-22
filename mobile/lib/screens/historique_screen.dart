@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/presence_model.dart';
 import '../services/api_service.dart';
+import '../services/offline_service.dart';
 import '../utils/helpers.dart';
 
 class HistoriqueScreen extends StatefulWidget {
@@ -25,6 +26,24 @@ class _HistoriqueScreenState extends State<HistoriqueScreen> {
     if (response != null && response is List) {
       setState(() {
         _presences = response.map((p) => PresenceModel.fromJson(p)).toList();
+      });
+    } else {
+      final pending = await OfflineService.getDB().getPendingPresences();
+      setState(() {
+        _presences = pending
+            .map((p) => PresenceModel(
+                  id: p.id,
+                  etudiantId: p.etudiantId,
+                  coursId: p.coursId,
+                  date: p.date,
+                  heurePointage: p.heurePointage,
+                  statut: 'EN ATTENTE',
+                  latitude: p.latitude,
+                  longitude: p.longitude,
+                  biometrieValidee: p.biometrieValidee,
+                  syncServeur: false,
+                ))
+            .toList();
       });
     }
     setState(() => _isLoading = false);

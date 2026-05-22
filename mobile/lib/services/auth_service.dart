@@ -7,25 +7,16 @@ import 'api_service.dart';
 class AuthService {
   // Connexion
   static Future<Map<String, dynamic>> login(
-      String matricule, String motDePasse, {String? codeAdmin}) async {
+      String matricule, String motDePasse) async {
     final body = {
       'matricule': matricule,
       'mot_de_passe': motDePasse,
     };
 
-    if (codeAdmin != null && codeAdmin.isNotEmpty) {
-      body['code_admin'] = codeAdmin;
-    }
-
     final response = await ApiService.post('/auth/login', body);
 
     if (response == null) {
       return {'success': false, 'message': 'Erreur de connexion au serveur'};
-    }
-
-    // Admin sans code
-    if (response['error'] == '❌ Code administrateur requis') {
-      return {'success': false, 'needAdminCode': true, 'message': response['error']};
     }
 
     if (response['token'] != null) {
@@ -43,7 +34,8 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(Constants.tokenKey);
     await prefs.remove(Constants.userKey);
-    // On ne supprime pas saved_matricule ici pour permettre la reconnexion biométrique
+    await prefs.remove('saved_matricule');
+    await prefs.remove('device_token');
   }
 
   // Récupérer utilisateur connecté

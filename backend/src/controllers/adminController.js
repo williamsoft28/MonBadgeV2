@@ -46,7 +46,7 @@ exports.getAllUsers = async (req, res) => {
   try {
     const [rows] = await db.execute(
       `SELECT id, nom, prenom, matricule, email, role, 
-              biometrie_enregistree, created_at 
+              biometrie_enregistree, created_at, matiere 
        FROM utilisateurs
        ORDER BY created_at DESC`
     );
@@ -113,10 +113,10 @@ exports.getAbsencesEtudiant = async (req, res) => {
 // Modifier un utilisateur
 exports.updateUser = async (req, res) => {
   try {
-    const { nom, prenom, matricule, email, role, filiere, niveau } = req.body;
+    const { nom, prenom, matricule, email, role, filiere, niveau, matiere } = req.body;
     await db.execute(
-      `UPDATE utilisateurs SET nom = ?, prenom = ?, matricule = ?, email = ?, role = ?, filiere = ?, niveau = ? WHERE id = ?`,
-      [nom, prenom, matricule, email, role, filiere || null, niveau || null, req.params.id]
+      `UPDATE utilisateurs SET nom = ?, prenom = ?, matricule = ?, email = ?, role = ?, filiere = ?, niveau = ?, matiere = ? WHERE id = ?`,
+      [nom, prenom, matricule, email, role, filiere || null, niveau || null, matiere || null, req.params.id]
     );
     res.json({ message: '✅ Utilisateur modifié avec succès' });
   } catch (err) {

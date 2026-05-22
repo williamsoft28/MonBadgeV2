@@ -8,6 +8,7 @@ class UserModel {
   final bool biometrieEnregistree;
   final String? filiere;
   final String? niveau;
+  final String? matiere;
 
   UserModel({
     required this.id,
@@ -19,6 +20,7 @@ class UserModel {
     required this.biometrieEnregistree,
     this.filiere,
     this.niveau,
+    this.matiere,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -33,6 +35,7 @@ class UserModel {
                             json['biometrie_active'] == true,
       filiere: json['filiere'],
       niveau: json['niveau'],
+      matiere: json['matiere'],
     );
   }
 
@@ -47,6 +50,7 @@ class UserModel {
       'biometrie_active': biometrieEnregistree,
       'filiere': filiere,
       'niveau': niveau,
+      'matiere': matiere,
     };
   }
 }

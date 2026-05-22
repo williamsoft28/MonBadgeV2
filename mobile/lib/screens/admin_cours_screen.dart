@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/cours_model.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
@@ -22,8 +23,8 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
   final _longitudeController = TextEditingController();
   final _heureDebutController = TextEditingController();
   final _heureFinController = TextEditingController();
-  final _filiereController = TextEditingController();
   final _dateCoursController = TextEditingController();
+  String? _filiere;
   String? _niveau;
   int? _enseignantId;
 
@@ -41,7 +42,6 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
     _longitudeController.dispose();
     _heureDebutController.dispose();
     _heureFinController.dispose();
-    _filiereController.dispose();
     _dateCoursController.dispose();
     super.dispose();
   }
@@ -70,8 +70,6 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
   Future<void> _createCours() async {
     if (_nomController.text.isEmpty ||
         _salleController.text.isEmpty ||
-        _latitudeController.text.isEmpty ||
-        _longitudeController.text.isEmpty ||
         _heureDebutController.text.isEmpty ||
         _heureFinController.text.isEmpty ||
         _enseignantId == null) {
@@ -79,10 +77,11 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
       return;
     }
 
-    final lat = double.tryParse(_latitudeController.text.replaceAll(',', '.'));
-    final lng = double.tryParse(_longitudeController.text.replaceAll(',', '.'));
+    final lat = _latitudeController.text.isEmpty ? null : double.tryParse(_latitudeController.text.replaceAll(',', '.'));
+    final lng = _longitudeController.text.isEmpty ? null : double.tryParse(_longitudeController.text.replaceAll(',', '.'));
 
-    if (lat == null || lng == null) {
+    if ((_latitudeController.text.isNotEmpty && lat == null) || 
+        (_longitudeController.text.isNotEmpty && lng == null)) {
       Helpers.showError(context, 'Les coordonnées GPS doivent être des nombres valides.');
       return;
     }
@@ -96,7 +95,7 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
       'heure_fin': _heureFinController.text,
       'date_cours': _dateCoursController.text,
       'enseignant_id': _enseignantId,
-      'filiere': _filiereController.text.trim().isEmpty ? null : _filiereController.text.trim(),
+      'filiere': _filiere,
       'niveau': _niveau,
     };
 
@@ -113,8 +112,6 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
   Future<void> _updateCours(int id) async {
     if (_nomController.text.isEmpty ||
         _salleController.text.isEmpty ||
-        _latitudeController.text.isEmpty ||
-        _longitudeController.text.isEmpty ||
         _heureDebutController.text.isEmpty ||
         _heureFinController.text.isEmpty ||
         _enseignantId == null) {
@@ -122,10 +119,11 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
       return;
     }
 
-    final lat = double.tryParse(_latitudeController.text.replaceAll(',', '.'));
-    final lng = double.tryParse(_longitudeController.text.replaceAll(',', '.'));
+    final lat = _latitudeController.text.isEmpty ? null : double.tryParse(_latitudeController.text.replaceAll(',', '.'));
+    final lng = _longitudeController.text.isEmpty ? null : double.tryParse(_longitudeController.text.replaceAll(',', '.'));
 
-    if (lat == null || lng == null) {
+    if ((_latitudeController.text.isNotEmpty && lat == null) || 
+        (_longitudeController.text.isNotEmpty && lng == null)) {
       Helpers.showError(context, 'Les coordonnées GPS doivent être des nombres valides.');
       return;
     }
@@ -139,7 +137,7 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
       'heure_fin': _heureFinController.text,
       'date_cours': _dateCoursController.text,
       'enseignant_id': _enseignantId,
-      'filiere': _filiereController.text.trim().isEmpty ? null : _filiereController.text.trim(),
+      'filiere': _filiere,
       'niveau': _niveau,
     };
 
@@ -170,8 +168,8 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
     _longitudeController.clear();
     _heureDebutController.clear();
     _heureFinController.clear();
-    _filiereController.clear();
     _dateCoursController.clear();
+    _filiere = null;
     setState(() {
       _enseignantId = null;
       _niveau = null;
@@ -219,9 +217,48 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                 ),
                 const SizedBox(height: 20),
                 
-                _buildModalLabel('Nom du cours'),
+                _buildModalLabel('Nom du cours (Matière)'),
                 const SizedBox(height: 8),
-                _buildModalTextField(_nomController, 'Algorithmique', Icons.book_outlined),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: DropdownButtonHideUnderline(
+                    child: DropdownButton<String>(
+                      value: _nomController.text.isEmpty ? null : _nomController.text,
+                      hint: Text(
+                        'Sélectionner une matière',
+                        style: TextStyle(color: Colors.green.withOpacity(0.4)),
+                      ),
+                      dropdownColor: Colors.white,
+                      style: TextStyle(color: Colors.green[800]),
+                      isExpanded: true,
+                      icon: Icon(Icons.arrow_drop_down, color: Colors.green),
+                      items: [
+                        if (_nomController.text.isNotEmpty &&
+                            !_enseignants.any((e) => e.matiere == _nomController.text))
+                          _nomController.text,
+                        ..._enseignants
+                            .map((e) => e.matiere)
+                            .where((m) => m != null && m.isNotEmpty)
+                            .cast<String>()
+                      ]
+                          .toSet()
+                          .map((m) => DropdownMenuItem<String>(
+                                value: m,
+                                child: Text(m),
+                              ))
+                          .toList(),
+                      onChanged: (value) {
+                        setState(() => _nomController.text = value ?? '');
+                        setModalState(() => _nomController.text = value ?? '');
+                      },
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 16),
                 
                 _buildModalLabel('Enseignant'),
@@ -252,7 +289,14 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                           .toList(),
                       onChanged: (value) {
                         setState(() => _enseignantId = value);
-                        setModalState(() => _enseignantId = value);
+                        setModalState(() {
+                          _enseignantId = value;
+                          // Auto-select matiere if teacher has one
+                          final teacher = _enseignants.firstWhere((e) => e.id == value);
+                          if (teacher.matiere != null && teacher.matiere!.isNotEmpty) {
+                            _nomController.text = teacher.matiere!;
+                          }
+                        });
                       },
                     ),
                   ),
@@ -353,7 +397,31 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                         children: [
                           _buildModalLabel('Filière (Optionnel)'),
                           const SizedBox(height: 8),
-                          _buildModalTextField(_filiereController, 'Ex: Informatique', Icons.school_outlined),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: Colors.green.withOpacity(0.3)),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: _filiere,
+                                hint: Text('Tous', style: TextStyle(color: Colors.green.withOpacity(0.4), fontSize: 13)),
+                                dropdownColor: Colors.white,
+                                style: TextStyle(color: Colors.green[800]),
+                                isExpanded: true,
+                                icon: Icon(Icons.arrow_drop_down, color: Colors.green),
+                                items: [null, 'Droit', 'Banque', 'Finance']
+                                    .map((f) => DropdownMenuItem(value: f, child: Text(f ?? 'Tous')))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() => _filiere = value);
+                                  setModalState(() => _filiere = value);
+                                },
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -398,26 +466,72 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
 
                 // Row: Latitude & Longitude
                 Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildModalLabel('Lat GPS'),
+                          _buildModalLabel('Lat GPS (Opt.)'),
                           const SizedBox(height: 8),
                           _buildModalTextField(_latitudeController, '12.365', Icons.location_on_outlined),
                         ],
                       ),
                     ),
-                    const SizedBox(width: 16),
+                    const SizedBox(width: 8),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _buildModalLabel('Lng GPS'),
+                          _buildModalLabel('Lng GPS (Opt.)'),
                           const SizedBox(height: 8),
                           _buildModalTextField(_longitudeController, '-1.533', Icons.location_on_outlined),
                         ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      height: 52,
+                      width: 52,
+                      decoration: BoxDecoration(
+                        color: Colors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.green.withOpacity(0.3)),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.my_location, color: Colors.green),
+                        onPressed: () async {
+                          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+                          if (!serviceEnabled) {
+                            if (context.mounted) Helpers.showError(context, 'Les services de localisation sont désactivés.');
+                            return;
+                          }
+                          LocationPermission permission = await Geolocator.checkPermission();
+                          if (permission == LocationPermission.denied) {
+                            permission = await Geolocator.requestPermission();
+                            if (permission == LocationPermission.denied) {
+                              if (context.mounted) Helpers.showError(context, 'Les permissions de localisation sont refusées.');
+                              return;
+                            }
+                          }
+                          if (permission == LocationPermission.deniedForever) {
+                            if (context.mounted) Helpers.showError(context, 'Les permissions sont définitivement refusées.');
+                            return;
+                          }
+                          
+                          if (context.mounted) Helpers.showSuccess(context, 'Récupération de la position...');
+                          try {
+                            Position position = await Geolocator.getCurrentPosition(
+                              desiredAccuracy: LocationAccuracy.high,
+                            );
+                            setModalState(() {
+                              _latitudeController.text = position.latitude.toString();
+                              _longitudeController.text = position.longitude.toString();
+                            });
+                          } catch (e) {
+                            if (context.mounted) Helpers.showError(context, 'Erreur lors de la récupération de la position.');
+                          }
+                        },
                       ),
                     ),
                   ],
@@ -633,7 +747,7 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                                   _heureFinController.text = cours.heureFin;
                                   _dateCoursController.text = cours.dateCours;
                                   _enseignantId = cours.enseignantId;
-                                  _filiereController.text = cours.filiere ?? '';
+                                  _filiere = cours.filiere;
                                   _niveau = cours.niveau;
                                   _showCreateModal(coursToEdit: cours);
                                 },

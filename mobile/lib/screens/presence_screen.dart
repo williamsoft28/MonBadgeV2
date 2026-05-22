@@ -61,22 +61,9 @@ class _PresenceScreenState extends State<PresenceScreen>
   }
 
   bool _isLocked() {
-    try {
-      final now = DateTime.now();
-      // Heure au format HH:mm:ss, dateCours YYYY-MM-DD
-      final debutStr = widget.cours.heureDebut.length == 5 ? '${widget.cours.heureDebut}:00' : widget.cours.heureDebut;
-      final finStr = widget.cours.heureFin.length == 5 ? '${widget.cours.heureFin}:00' : widget.cours.heureFin;
-
-      final debut = DateTime.parse('${widget.cours.dateCours}T$debutStr');
-      final fin = DateTime.parse('${widget.cours.dateCours}T$finStr');
-      
-      final windowStart = debut.subtract(const Duration(minutes: 10));
-      final windowEnd = fin.add(const Duration(minutes: 10));
-      
-      return now.isBefore(windowStart) || now.isAfter(windowEnd);
-    } catch (e) {
-      return false;
-    }
+    // La limite de temps a été retirée à la demande de l'utilisateur.
+    // L'étudiant peut désormais badger à n'importe quel moment de la journée.
+    return false;
   }
 
   @override
@@ -153,25 +140,34 @@ class _PresenceScreenState extends State<PresenceScreen>
       faceImageBase64: base64Image, // Ajouté dans le modèle si nécessaire
     );
 
-    // Étape 3 — Réseau ou offline
+    // Étape 3 — Réseau ou mode hors ligne
     final connectivity = await Connectivity().checkConnectivity();
+    final body = {
+      'etudiant_id': user!.id,
+      'cours_id': widget.cours.id,
+      'date': presence.date,
+      'heure_pointage': presence.heurePointage,
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+      'biometrie_validee': true,
+      'faceImageBase64': base64Image,
+    };
+
     if (connectivity == ConnectivityResult.none) {
       await OfflineService.savePresence(presence);
       _setStatus('offline', 'Présence sauvegardée hors ligne (Photo incluse)');
-    } else {
-      final response = await ApiService.post('/presences/pointer', {
-        'cours_id': widget.cours.id,
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-        'biometrie_validee': true,
-        'faceImageBase64': base64Image,
-      });
+      return;
+    }
 
-      if (response != null && response['message'] != null) {
-        _setStatus('success', 'Présence enregistrée avec succès !');
+    final response = await ApiService.post('/presences/pointer', body);
+    if (response != null && (response['success'] == true || response['offline'] == true)) {
+      if (response['offline'] == true) {
+        _setStatus('offline', 'Présence sauvegardée hors ligne (Photo incluse)');
       } else {
-        _setStatus('error', response?['error'] ?? 'Erreur inconnue');
+        _setStatus('success', 'Présence enregistrée avec succès !');
       }
+    } else {
+      _setStatus('error', response?['error'] ?? 'Erreur inconnue');
     }
   }
 
