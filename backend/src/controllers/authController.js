@@ -2,6 +2,7 @@ const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const faceService = require('../services/faceService');
+const faceFeatureService = require('../services/faceFeatureService');
 
 // Inscription (admin seulement)
 exports.register = async (req, res) => {
@@ -154,5 +155,83 @@ exports.enableBiometrics = async (req, res) => {
     res.json({ success: true, message: '✅ Biométrie (Visage) activée avec succès' });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+// Enregistrer les features faciales (ML Kit) — première connexion
+exports.enrollFace = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { faceFeatures } = req.body;
+
+    if (!faceFeatures || !Array.isArray(faceFeatures)) {
+      return res.status(400).json({ error: '❌ Features faciales manquantes' });
+    }
+    if (faceFeatures.length < 10) {
+      return res.status(400).json({ error: '❌ Features insuffisantes — visage mal détecté' });
+    }
+
+    const featuresString = JSON.stringify(faceFeatures.map(Number));
+
+    await db.execute(
+      `UPDATE utilisateurs 
+       SET biometrie_enregistree = TRUE, face_features = ? 
+       WHERE id = ?`,
+      [featuresString, userId]
+    );
+
+    res.json({
+      success: true,
+      message: '✅ Visage enregistré avec succès',
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Vérifier le visage au pointage (comparaison serveur)
+exports.verifyFace = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { faceFeatures } = req.body;
+
+    if (!faceFeatures || !Array.isArray(faceFeatures)) {
+      return res.status(400).json({ error: '❌ Features faciales manquantes', verified: false });
+    }
+
+    const [rows] = await db.execute(
+      'SELECT face_features, biometrie_enregistree FROM utilisateurs WHERE id = ?',
+      [userId]
+    );
+
+    if (rows.length === 0 || !rows[0].face_features) {
+      return res.status(403).json({
+        error: '❌ Visage non enregistré. Complétez l\'enregistrement facial.',
+        verified: false,
+      });
+    }
+
+    const savedFeatures = JSON.parse(rows[0].face_features);
+    const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
+    const verified = faceFeatureService.isMatch(similarity);
+    const similarityPercent = faceFeatureService.toPercent(similarity);
+
+    if (!verified) {
+      return res.status(403).json({
+        success: false,
+        verified: false,
+        similarity: similarityPercent,
+        error: `❌ Visage non reconnu (${similarityPercent}% — minimum 80%)`,
+      });
+    }
+
+    res.json({
+      success: true,
+      verified: true,
+      similarity: similarityPercent,
+      message: `✅ Visage reconnu (${similarityPercent}%)`,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message, verified: false });
   }
 };

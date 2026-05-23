@@ -4,6 +4,7 @@ import '../models/cours_model.dart';
 import '../models/user_model.dart';
 import '../services/api_service.dart';
 import '../utils/helpers.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class AdminCoursScreen extends StatefulWidget {
   const AdminCoursScreen({super.key});
@@ -159,6 +160,51 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
     } else {
       Helpers.showError(context, response?['error'] ?? 'Échec de la suppression du cours.');
     }
+  }
+
+  void _showQRCode(CoursModel cours) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(
+          'QR Code du cours',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.green[900]),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              cours.nom,
+              style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 200,
+              height: 200,
+              child: QrImageView(
+                data: '{"coursId": ${cours.id}, "nom": "${cours.nom}"}',
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Faites scanner ce QR Code par les étudiants en mode hors-ligne.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer', style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      ),
+    );
   }
 
   void _clearForm() {
@@ -737,6 +783,15 @@ class _AdminCoursScreenState extends State<AdminCoursScreen> {
                           Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                              GestureDetector(
+                                onTap: () => _showQRCode(cours),
+                                child: Icon(
+                                  Icons.qr_code,
+                                  color: Colors.green.withOpacity(0.7),
+                                  size: 18,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
                               GestureDetector(
                                 onTap: () {
                                   _nomController.text = cours.nom;

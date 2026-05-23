@@ -70,9 +70,6 @@ exports.getCoursDuJour = async (req, res) => {
 
     // Filtrer par niveau et filière si c'est un étudiant
     if (req.user && req.user.role === 'etudiant') {
-      // Les étudiants continuent de voir les cours toute la journée, même une fois l'heure passée
-      // query += ` AND c.heure_fin >= CURTIME()`;
-
       let filiere = req.user.filiere;
       let niveau = req.user.niveau;
       

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const faceService = require('../services/faceService');
+const faceFeatureService = require('../services/faceFeatureService');
 
 // Pointer présence
 exports.pointerPresence = async (req, res) => {
@@ -16,28 +17,45 @@ exports.pointerPresence = async (req, res) => {
       return res.status(404).json({ error: '❌ Cours non trouvé' });
     }
 
-    // Vérifier biométrie via reconnaissance faciale
-    const { faceImageBase64 } = req.body;
-    if (!faceImageBase64) {
-      return res.status(403).json({ error: '❌ Image du visage requise pour la présence' });
+    // Vérifier biométrie via features ML Kit (prioritaire) ou image legacy
+    const { faceFeatures, faceImageBase64 } = req.body;
+
+    const [uRows] = await db.execute(
+      'SELECT face_features, face_descriptor FROM utilisateurs WHERE id = ?',
+      [etudiant_id]
+    );
+
+    if (uRows.length === 0) {
+      return res.status(403).json({ error: '❌ Utilisateur introuvable' });
     }
 
-    const [uRows] = await db.execute('SELECT face_descriptor FROM utilisateurs WHERE id = ?', [etudiant_id]);
-    if (uRows.length === 0 || !uRows[0].face_descriptor) {
-      return res.status(403).json({ error: '❌ Visage non enregistré. Veuillez reconfigurer votre biométrie.' });
-    }
+    let faceVerified = false;
 
-    const savedDescriptorStr = uRows[0].face_descriptor;
-    const savedDescriptor = new Float32Array(JSON.parse(savedDescriptorStr));
-
-    const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
-    if (!currentDescriptor) {
-      return res.status(403).json({ error: '❌ Impossible de détecter un visage sur la photo fournie.' });
-    }
-
-    const faceDistance = faceService.compareFaces(savedDescriptor, currentDescriptor);
-    if (isNaN(faceDistance) || faceDistance > 0.6) {
-      return res.status(403).json({ error: '❌ Visage non reconnu ou différent de celui enregistré.' });
+    if (faceFeatures && Array.isArray(faceFeatures) && uRows[0].face_features) {
+      const savedFeatures = JSON.parse(uRows[0].face_features);
+      const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
+      faceVerified = faceFeatureService.isMatch(similarity);
+      if (!faceVerified) {
+        const pct = faceFeatureService.toPercent(similarity);
+        return res.status(403).json({
+          error: `❌ Visage non reconnu (${pct}% — minimum 80%)`,
+        });
+      }
+    } else if (faceImageBase64 && uRows[0].face_descriptor) {
+      const savedDescriptor = new Float32Array(JSON.parse(uRows[0].face_descriptor));
+      const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
+      if (!currentDescriptor) {
+        return res.status(403).json({ error: '❌ Impossible de détecter un visage sur la photo fournie.' });
+      }
+      const faceDistance = faceService.compareFaces(savedDescriptor, currentDescriptor);
+      faceVerified = !isNaN(faceDistance) && faceDistance <= 0.6;
+      if (!faceVerified) {
+        return res.status(403).json({ error: '❌ Visage non reconnu ou différent de celui enregistré.' });
+      }
+    } else {
+      return res.status(403).json({
+        error: '❌ Visage non enregistré ou features manquantes. Reconfigurez votre biométrie.',
+      });
     }
 
     // Vérifier la géolocalisation
@@ -146,21 +164,27 @@ exports.syncOffline = async (req, res) => {
     let synced = 0;
 
     for (const p of presences) {
-      if (p.faceImageBase64) {
-        const [uRows] = await db.execute('SELECT face_descriptor FROM utilisateurs WHERE id = ?', [p.etudiant_id]);
-        if (uRows.length > 0 && uRows[0].face_descriptor) {
-          const savedDescriptor = new Float32Array(JSON.parse(uRows[0].face_descriptor));
-          const currentDescriptor = await faceService.getFaceDescriptor(p.faceImageBase64);
-          
-          if (!currentDescriptor || faceService.compareFaces(savedDescriptor, currentDescriptor) > 0.6) {
-            continue; // skip invalid face presence
-          }
-        } else {
-          continue; // no face registered
-        }
-      } else {
-        continue; // reject offline without face proof for now to ensure security
+      const [uRows] = await db.execute(
+        'SELECT face_features, face_descriptor FROM utilisateurs WHERE id = ?',
+        [p.etudiant_id]
+      );
+      if (uRows.length === 0) continue;
+
+      let validFace = false;
+
+      if (p.faceFeatures && uRows[0].face_features) {
+        const saved = JSON.parse(uRows[0].face_features);
+        const sim = faceFeatureService.compareFeatures(saved, p.faceFeatures);
+        validFace = faceFeatureService.isMatch(sim);
+      } else if (p.faceImageBase64 && uRows[0].face_descriptor) {
+        const savedDescriptor = new Float32Array(JSON.parse(uRows[0].face_descriptor));
+        const currentDescriptor = await faceService.getFaceDescriptor(p.faceImageBase64);
+        validFace =
+          currentDescriptor &&
+          faceService.compareFaces(savedDescriptor, currentDescriptor) <= 0.6;
       }
+
+      if (!validFace) continue;
 
       const [existe] = await db.execute(
         `SELECT * FROM presences 

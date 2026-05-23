@@ -5,7 +5,7 @@ import '../services/auth_service.dart';
 import '../utils/helpers.dart';
 import 'dashboard_screen.dart';
 import 'admin_dashboard_screen.dart';
-import 'biometric_setup_screen.dart';
+import 'enroll_face_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -134,7 +134,7 @@ class _LoginScreenState extends State<LoginScreen>
           if (!user!.biometrieEnregistree) {
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (_) => BiometricSetupScreen(matricule: matricule)),
+              MaterialPageRoute(builder: (_) => EnrollFaceScreen(matricule: matricule)),
             );
           } else {
             Navigator.pushReplacement(

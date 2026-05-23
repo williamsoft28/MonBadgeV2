@@ -1,19 +1,26 @@
-import 'dart:convert';
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
 import '../models/cours_model.dart';
 import '../models/presence_model.dart';
 import '../services/location_service.dart';
 import '../services/api_service.dart';
 import '../services/offline_service.dart';
 import '../services/auth_service.dart';
+import '../services/face_recognition_service.dart';
 import '../utils/helpers.dart';
+import '../utils/app_theme.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:geolocator/geolocator.dart';
 
 class PresenceScreen extends StatefulWidget {
   final CoursModel cours;
-  const PresenceScreen({super.key, required this.cours});
+  final bool isOfflineQR;
+  
+  const PresenceScreen({
+    super.key, 
+    required this.cours,
+    this.isOfflineQR = false,
+  });
 
   @override
   State<PresenceScreen> createState() => _PresenceScreenState();
@@ -27,7 +34,9 @@ class _PresenceScreenState extends State<PresenceScreen>
   late AnimationController _pulseController;
   late Animation<double> _pulseAnim;
   Position? _cachedPosition;
-  final ImagePicker _picker = ImagePicker();
+  final FaceRecognitionService _faceService = FaceRecognitionService();
+  bool _cameraReady = false;
+  bool _showCamera = false;
 
   @override
   void initState() {
@@ -46,7 +55,7 @@ class _PresenceScreenState extends State<PresenceScreen>
     if (_isLocked()) {
       setState(() {
         _status = 'locked';
-        _statusMessage = "Hors délai. Présence verrouillée.";
+        _statusMessage = 'Hors délai. Présence verrouillée.';
       });
       return;
     }
@@ -55,21 +64,34 @@ class _PresenceScreenState extends State<PresenceScreen>
     if (mounted) {
       setState(() {
         _cachedPosition = position;
-        _statusMessage = 'Prêt à badger';
+        _statusMessage = widget.isOfflineQR 
+            ? 'Prêt pour la reconnaissance (GPS ignoré)'
+            : 'Prêt à badger';
       });
     }
   }
 
-  bool _isLocked() {
-    // La limite de temps a été retirée à la demande de l'utilisateur.
-    // L'étudiant peut désormais badger à n'importe quel moment de la journée.
-    return false;
-  }
+  bool _isLocked() => false;
 
   @override
   void dispose() {
     _pulseController.dispose();
+    _faceService.dispose();
     super.dispose();
+  }
+
+  Future<void> _prepareCamera() async {
+    try {
+      await _faceService.initCamera();
+      if (mounted) {
+        setState(() {
+          _cameraReady = true;
+          _showCamera = true;
+        });
+      }
+    } catch (e) {
+      _setStatus('error', 'Impossible d\'ouvrir la caméra : $e');
+    }
   }
 
   Future<void> _pointer() async {
@@ -78,103 +100,127 @@ class _PresenceScreenState extends State<PresenceScreen>
       return;
     }
 
-    setState(() {
-      _isLoading = true;
-      _status = 'loading';
-      _statusMessage = 'Vérification de la position...';
-    });
+    // Étape GPS (si pas encore fait)
+    if (_cachedPosition == null && _status == 'idle') {
+      if (widget.isOfflineQR) {
+        // En mode QR Code, on by-pass le GPS et on prend une position fictive ou la dernière connue
+        _cachedPosition = Position(
+          longitude: widget.cours.longitude ?? 0,
+          latitude: widget.cours.latitude ?? 0,
+          timestamp: DateTime.now(),
+          accuracy: 10,
+          altitude: 0,
+          heading: 0,
+          speed: 0,
+          speedAccuracy: 0,
+          altitudeAccuracy: 0,
+          headingAccuracy: 0,
+        );
+        setState(() {
+          _status = 'face_capture';
+          _statusMessage = 'Regardez la caméra et validez votre visage';
+        });
+        await _prepareCamera();
+        return;
+      }
 
-    // Étape 1 — Géolocalisation
-    Position? position = _cachedPosition;
-    if (position == null) {
-      position = await LocationService.getCurrentPosition();
-    }
+      setState(() {
+        _isLoading = true;
+        _status = 'loading';
+        _statusMessage = 'Vérification de la position...';
+      });
 
-    if (position == null) {
-      _setStatus('error', 'Impossible d\'obtenir votre position GPS');
-      return;
-    }
+      Position? position = await LocationService.getCurrentPosition();
+      if (position == null) {
+        _setStatus('error', 'Impossible d\'obtenir votre position GPS');
+        return;
+      }
 
-    final dansLaSalle = LocationService.estDansLaSalle(
-      position.latitude,
-      position.longitude,
-      widget.cours.latitude,
-      widget.cours.longitude,
-    );
-
-    if (!dansLaSalle) {
-      _setStatus('error', 'Vous n\'êtes pas dans la salle de classe');
-      return;
-    }
-
-    setState(() => _statusMessage = 'Prenez un selfie pour valider...');
-
-    // Étape 2 — Biométrie (Reconnaissance Faciale)
-    final XFile? photo = await _picker.pickImage(
-      source: ImageSource.camera,
-      preferredCameraDevice: CameraDevice.front,
-      maxWidth: 800,
-      maxHeight: 800,
-      imageQuality: 80,
-    );
-
-    if (photo == null) {
-      _setStatus(
-        'error',
-        'Vous devez prendre une photo pour valider la présence',
+      final dansLaSalle = LocationService.estDansLaSalle(
+        position.latitude,
+        position.longitude,
+        widget.cours.latitude,
+        widget.cours.longitude,
       );
+
+      if (!dansLaSalle) {
+        _setStatus('error', 'Vous n\'êtes pas dans la salle de classe');
+        return;
+      }
+
+      _cachedPosition = position;
+      setState(() {
+        _isLoading = false;
+        _status = 'face_capture';
+        _statusMessage = 'Regardez la caméra et validez votre visage';
+      });
+      await _prepareCamera();
       return;
     }
 
-    final bytes = await photo.readAsBytes();
-    final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+    // Étape capture + vérification faciale
+    if (_status == 'face_capture') {
+      setState(() {
+        _isLoading = true;
+        _statusMessage = 'Analyse du visage (ML Kit)...';
+      });
 
-    setState(() => _statusMessage = 'Enregistrement de la présence...');
+      final verifyResult = await _faceService.verifyFace();
+      if (!verifyResult.success) {
+        _setStatus(
+          'error',
+          verifyResult.message,
+        );
+        return;
+      }
 
+      setState(() => _statusMessage = 'Enregistrement de la présence...');
+      await _submitPresence(verifyResult.features!);
+      return;
+    }
+  }
+
+  Future<void> _submitPresence(List<double> faceFeatures) async {
+    final position = _cachedPosition!;
     final user = await AuthService.getCurrentUser();
     final now = DateTime.now();
     final presence = PresenceModel(
       etudiantId: user!.id,
       coursId: widget.cours.id,
       date: now.toIso8601String().split('T')[0],
-      heurePointage: now.toTimeString().split(' ')[0],
+      heurePointage:
+          '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}:${now.second.toString().padLeft(2, '0')}',
       latitude: position.latitude,
       longitude: position.longitude,
       biometrieValidee: true,
-      deviceToken: null, // Plus utilisé
-      faceImageBase64: base64Image, // Ajouté dans le modèle si nécessaire
+      deviceToken: null,
+      faceImageBase64: null,
     );
 
-    // Étape 3 — Réseau ou mode hors ligne
     final connectivity = await Connectivity().checkConnectivity();
     final body = {
-      'etudiant_id': user!.id,
+      'etudiant_id': user.id,
       'cours_id': widget.cours.id,
       'date': presence.date,
       'heure_pointage': presence.heurePointage,
       'latitude': position.latitude,
       'longitude': position.longitude,
       'biometrie_validee': true,
-      'faceImageBase64': base64Image,
+      'faceFeatures': faceFeatures,
     };
 
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.contains(ConnectivityResult.none)) {
       await OfflineService.savePresence(presence);
-      _setStatus('offline', 'Présence sauvegardée hors ligne (Photo incluse)');
+      _setStatus('offline', 'Présence sauvegardée hors ligne');
       return;
     }
 
     final response = await ApiService.post('/presences/pointer', body);
     if (response != null &&
-        (response['success'] == true || response['offline'] == true)) {
-      if (response['offline'] == true) {
-        _setStatus(
-          'offline',
-          'Présence sauvegardée hors ligne (Photo incluse)',
-        );
-      } else {
-        _setStatus('success', 'Présence enregistrée avec succès !');
-      }
+        (response['message'] != null || response['success'] == true)) {
+      _setStatus('success', 'Présence enregistrée avec succès !');
+    } else if (response != null && response['offline'] == true) {
+      _setStatus('offline', 'Présence sauvegardée hors ligne');
     } else {
       _setStatus('error', response?['error'] ?? 'Erreur inconnue');
     }
@@ -186,21 +232,26 @@ class _PresenceScreenState extends State<PresenceScreen>
       _isLoading = false;
       _status = status;
       _statusMessage = message;
+      if (status != 'face_capture') {
+        _showCamera = false;
+      }
     });
   }
 
   Color get _statusColor {
     switch (_status) {
       case 'success':
-        return Colors.green[600]!;
+        return AppTheme.accentGreen;
       case 'error':
-        return Colors.red;
+        return Colors.redAccent;
       case 'offline':
         return Colors.orange;
       case 'locked':
         return Colors.grey;
+      case 'face_capture':
+        return AppTheme.accentPurple;
       default:
-        return Colors.green;
+        return AppTheme.accentGreen;
     }
   }
 
@@ -214,6 +265,8 @@ class _PresenceScreenState extends State<PresenceScreen>
         return Icons.cloud_off_outlined;
       case 'locked':
         return Icons.lock_outline;
+      case 'face_capture':
+        return Icons.face_retouching_natural;
       default:
         return Icons.fingerprint;
     }
@@ -221,19 +274,21 @@ class _PresenceScreenState extends State<PresenceScreen>
 
   @override
   Widget build(BuildContext context) {
+    final preview = _faceService.controller;
+
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.bgDark,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios, color: Colors.green[900], size: 20),
+          icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text(
+        title: const Text(
           'Prendre présence',
           style: TextStyle(
-            color: Colors.green[900],
+            color: Colors.white,
             fontSize: 16,
             fontWeight: FontWeight.w600,
           ),
@@ -244,20 +299,14 @@ class _PresenceScreenState extends State<PresenceScreen>
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              // Info cours
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.cardBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.withOpacity(0.2)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: AppTheme.accentPurple.withOpacity(0.3),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -265,12 +314,12 @@ class _PresenceScreenState extends State<PresenceScreen>
                       width: 50,
                       height: 50,
                       decoration: BoxDecoration(
-                        color: Colors.green.withOpacity(0.1),
+                        color: AppTheme.accentPurple.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: const Icon(
                         Icons.book_outlined,
-                        color: Colors.green,
+                        color: AppTheme.accentPurple,
                         size: 24,
                       ),
                     ),
@@ -281,8 +330,8 @@ class _PresenceScreenState extends State<PresenceScreen>
                         children: [
                           Text(
                             widget.cours.nom,
-                            style: TextStyle(
-                              color: Colors.green[900],
+                            style: const TextStyle(
+                              color: Colors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w600,
                             ),
@@ -290,15 +339,15 @@ class _PresenceScreenState extends State<PresenceScreen>
                           const SizedBox(height: 4),
                           Text(
                             '${Helpers.formatHeure(widget.cours.heureDebut)} — ${Helpers.formatHeure(widget.cours.heureFin)}',
-                            style: TextStyle(
-                              color: Colors.green[800]?.withOpacity(0.6),
+                            style: const TextStyle(
+                              color: AppTheme.textMuted,
                               fontSize: 13,
                             ),
                           ),
                           Text(
                             widget.cours.salle,
-                            style: TextStyle(
-                              color: Colors.green[800]?.withOpacity(0.6),
+                            style: const TextStyle(
+                              color: AppTheme.textMuted,
                               fontSize: 13,
                             ),
                           ),
@@ -308,12 +357,9 @@ class _PresenceScreenState extends State<PresenceScreen>
                   ],
                 ),
               ),
-
               const Spacer(),
-
-              // Bouton principal biométrie
               ScaleTransition(
-                scale: _status == 'idle'
+                scale: _status == 'idle' || _status == 'face_capture'
                     ? _pulseAnim
                     : const AlwaysStoppedAnimation(1.0),
                 child: GestureDetector(
@@ -323,26 +369,32 @@ class _PresenceScreenState extends State<PresenceScreen>
                     height: 200,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: _statusColor.withOpacity(0.1),
+                      color: _statusColor.withOpacity(0.12),
                       border: Border.all(
-                        color: _statusColor.withOpacity(0.4),
+                        color: _statusColor.withOpacity(0.5),
                         width: 2,
                       ),
                     ),
-                    child: Center(
-                      child: _isLoading
-                          ? CircularProgressIndicator(
-                              color: _statusColor,
-                              strokeWidth: 3,
-                            )
-                          : Icon(_statusIcon, color: _statusColor, size: 80),
+                    child: ClipOval(
+                      child: _showCamera && _cameraReady && preview != null
+                          ? CameraPreview(preview)
+                          : Center(
+                              child: _isLoading
+                                  ? CircularProgressIndicator(
+                                      color: _statusColor,
+                                      strokeWidth: 3,
+                                    )
+                                  : Icon(
+                                      _statusIcon,
+                                      color: _statusColor,
+                                      size: 80,
+                                    ),
+                            ),
                     ),
                   ),
                 ),
               ),
-
               const SizedBox(height: 32),
-
               Text(
                 _statusMessage,
                 textAlign: TextAlign.center,
@@ -352,53 +404,36 @@ class _PresenceScreenState extends State<PresenceScreen>
                   fontWeight: FontWeight.w500,
                 ),
               ),
-
               const SizedBox(height: 12),
-
               Text(
-                _status == 'idle' ? 'Appuyez sur le bouton pour badger' : '',
-                style: TextStyle(
-                  color: Colors.green[800]?.withOpacity(0.4),
-                  fontSize: 13,
-                ),
+                _status == 'idle'
+                    ? 'Appuyez pour vérifier GPS puis votre visage'
+                    : _status == 'face_capture'
+                        ? 'Appuyez pour capturer et valider (≥ 80 %)'
+                        : '',
+                style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
               ),
-
               const Spacer(),
-
-              // Étapes de vérification
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.cardBg,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green.withOpacity(0.15)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.02),
-                      blurRadius: 10,
-                      offset: const Offset(0, -4),
-                    ),
-                  ],
+                  border: Border.all(
+                    color: AppTheme.accentGreen.withOpacity(0.2),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    _buildStep(
-                      Icons.location_on_outlined,
-                      'Géolocalisation GPS',
-                      1,
-                    ),
+                    _buildStep(Icons.location_on_outlined, 'Géolocalisation GPS', 1),
                     const SizedBox(height: 12),
                     _buildStep(
-                      Icons.fingerprint,
-                      'Authentification biométrique',
+                      Icons.face_retouching_natural,
+                      'Reconnaissance faciale ML Kit',
                       2,
                     ),
                     const SizedBox(height: 12),
-                    _buildStep(
-                      Icons.cloud_done_outlined,
-                      'Enregistrement présence',
-                      3,
-                    ),
+                    _buildStep(Icons.cloud_done_outlined, 'Enregistrement présence', 3),
                   ],
                 ),
               ),
@@ -417,24 +452,14 @@ class _PresenceScreenState extends State<PresenceScreen>
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: Colors.green.withOpacity(0.1),
+            color: AppTheme.accentGreen.withOpacity(0.15),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: Colors.green, size: 18),
+          child: Icon(icon, color: AppTheme.accentGreen, size: 18),
         ),
         const SizedBox(width: 14),
-        Text(
-          label,
-          style: TextStyle(
-            color: Colors.green[800]?.withOpacity(0.6),
-            fontSize: 13,
-          ),
-        ),
+        Text(label, style: const TextStyle(color: AppTheme.textMuted, fontSize: 13)),
       ],
     );
   }
-}
-
-extension on DateTime {
-  String toTimeString() => '$hour:$minute:$second';
 }

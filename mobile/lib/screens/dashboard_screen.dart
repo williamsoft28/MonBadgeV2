@@ -10,6 +10,8 @@ import '../utils/helpers.dart';
 import 'login_screen.dart';
 import 'presence_screen.dart';
 import 'historique_screen.dart';
+import 'qr_scanner_screen.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -397,6 +399,51 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  void _showQRCode(CoursModel cours) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        backgroundColor: Colors.white,
+        title: Text(
+          'QR Code du cours',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Colors.green[900]),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              cours.nom,
+              style: TextStyle(color: Colors.green[800], fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: 200,
+              height: 200,
+              child: QrImageView(
+                data: '{"coursId": ${cours.id}, "nom": "${cours.nom}"}',
+                version: QrVersions.auto,
+                size: 200.0,
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Text(
+              "Faites scanner ce QR Code par les étudiants en mode hors-ligne.",
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Fermer', style: TextStyle(color: Colors.green)),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showTeacherOptions(CoursModel cours) {
     showModalBottomSheet(
       context: context,
@@ -417,6 +464,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            ListTile(
+              leading: const Icon(Icons.qr_code, color: Colors.green),
+              title: Text(
+                'Afficher le QR Code (Hors-ligne)',
+                style: GoogleFonts.inter(),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                _showQRCode(cours);
+              },
+            ),
             ListTile(
               leading: const Icon(Icons.download_outlined, color: Colors.green),
               title: Text(
@@ -501,13 +559,71 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    cours.nom,
-                    style: GoogleFonts.outfit(
-                      color: Colors.green[900],
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          cours.nom,
+                          style: GoogleFonts.outfit(
+                            color: Colors.green[900],
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                      if (cours.estActif)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.green.shade200),
+                          ),
+                          child: Text(
+                            'ACTIF ✅',
+                            style: GoogleFonts.inter(
+                              color: Colors.green.shade700,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else if (cours.estTermine)
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.red.shade200),
+                          ),
+                          child: Text(
+                            'TERMINÉ ❌',
+                            style: GoogleFonts.inter(
+                              color: Colors.red.shade700,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        )
+                      else
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.orange.shade200),
+                          ),
+                          child: Text(
+                            'À VENIR ⏳',
+                            style: GoogleFonts.inter(
+                              color: Colors.orange.shade800,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -580,6 +696,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
           ],
         ),
+        if (_user?.role == 'etudiant') ...[
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              _buildActionBtn(
+                icon: Icons.qr_code_scanner,
+                label: 'Scanner QR Code',
+                color: Colors.blue[600]!,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const QRScannerScreen()),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(child: const SizedBox()), // Empty space to keep layout balanced
+            ],
+          ),
+        ],
       ],
     );
   }

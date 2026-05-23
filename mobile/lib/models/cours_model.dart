@@ -70,4 +70,40 @@ class CoursModel {
       'niveau': niveau,
     };
   }
+
+  bool get estActif {
+    try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      if (dateCours != todayStr) return false;
+
+      final heureNow = now.hour * 60 + now.minute;
+      final startParts = heureDebut.split(':');
+      final endParts = heureFin.split(':');
+      
+      final startMin = int.parse(startParts[0]) * 60 + int.parse(startParts[1]);
+      final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+
+      return heureNow >= startMin && heureNow <= endMin;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  bool get estTermine {
+    try {
+      final now = DateTime.now();
+      final todayStr = '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      if (dateCours.compareTo(todayStr) < 0) return true;
+      if (dateCours.compareTo(todayStr) > 0) return false;
+
+      final heureNow = now.hour * 60 + now.minute;
+      final endParts = heureFin.split(':');
+      final endMin = int.parse(endParts[0]) * 60 + int.parse(endParts[1]);
+
+      return heureNow > endMin;
+    } catch (_) {
+      return false;
+    }
+  }
 }

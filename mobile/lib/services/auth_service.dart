@@ -12,10 +12,21 @@ class AuthService {
   ) async {
     final body = {'matricule': matricule, 'mot_de_passe': motDePasse};
 
-    final response = await ApiService.post('/auth/login', body);
+    final response = await ApiService.post(
+      '/auth/login',
+      body,
+      withAuth: false,
+    );
 
     if (response == null) {
       return {'success': false, 'message': 'Erreur de connexion au serveur'};
+    }
+
+    if (response['_connectionFailed'] == true) {
+      return {
+        'success': false,
+        'message': response['error'] ?? 'Erreur de connexion au serveur',
+      };
     }
 
     if (response['token'] != null) {
@@ -54,6 +65,16 @@ class AuthService {
     return prefs.getString(Constants.tokenKey) != null;
   }
 
+  /// Met à jour le flag biométrie en local après enregistrement du visage.
+  static Future<void> updateBiometrieStatus(bool enrolled) async {
+    final user = await getCurrentUser();
+    if (user == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    final updated = user.toJson();
+    updated['biometrie_active'] = enrolled;
+    await prefs.setString(Constants.userKey, jsonEncode(updated));
+  }
+
   // --- Fonctions pour la biométrie ---
   static Future<void> saveCredentials(
     String matricule,
@@ -85,10 +106,21 @@ class AuthService {
   ) async {
     final body = {'matricule': matricule, 'deviceToken': deviceToken};
 
-    final response = await ApiService.post('/auth/login-biometric', body);
+    final response = await ApiService.post(
+      '/auth/login-biometric',
+      body,
+      withAuth: false,
+    );
 
     if (response == null) {
       return {'success': false, 'message': 'Erreur de connexion au serveur'};
+    }
+
+    if (response['_connectionFailed'] == true) {
+      return {
+        'success': false,
+        'message': response['error'] ?? 'Erreur de connexion au serveur',
+      };
     }
 
     if (response['token'] != null) {

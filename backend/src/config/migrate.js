@@ -42,6 +42,11 @@ async function migrate() {
     console.log('✅ Colonne face_descriptor ajoutée');
   } catch (e) {}
 
+  try {
+    await connection.execute('ALTER TABLE utilisateurs ADD COLUMN face_features TEXT');
+    console.log('✅ Colonne face_features ajoutée');
+  } catch (e) {}
+
   console.log('✅ Table utilisateurs créée');
 
   // Pour la migration, on vide et supprime les anciennes tables de cours et présences
