@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../utils/constants.dart';
 import 'offline_service.dart';
 import '../models/presence_model.dart';
 
 class ApiService {
-  static bool offlineMode = false;
   static const String _offlineModeKey = 'offline_mode';
   static String _baseUrl = Constants.defaultBaseUrl;
 
@@ -16,8 +16,7 @@ class ApiService {
   static Future<void> initOfflineMode() async {
     final prefs = await SharedPreferences.getInstance();
     
-    // Force la désactivation du mode hors ligne pour débloquer
-    offlineMode = false;
+    // Mode hors ligne désormais entièrement automatique
     await prefs.setBool(_offlineModeKey, false);
     
     // Force l'utilisation de l'URL de constants.dart pour écraser les erreurs en cache
@@ -37,9 +36,7 @@ class ApiService {
   }
 
   static Future<void> setOfflineMode(bool enabled) async {
-    offlineMode = enabled;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_offlineModeKey, enabled);
+    // Remplacé par l'auto-détection, on garde la méthode vide pour éviter de casser du code existant non nettoyé
   }
 
   static Future<String?> getToken() async {
@@ -140,22 +137,22 @@ class ApiService {
         case 'GET':
           response = await http
               .get(uri, headers: headers)
-              .timeout(const Duration(seconds: 30));
+              .timeout(const Duration(seconds: 5));
           break;
         case 'POST':
           response = await http
               .post(uri, headers: headers, body: jsonEncode(body ?? {}))
-              .timeout(const Duration(seconds: 60));
+              .timeout(const Duration(seconds: 5));
           break;
         case 'PUT':
           response = await http
               .put(uri, headers: headers, body: jsonEncode(body ?? {}))
-              .timeout(const Duration(seconds: 30));
+              .timeout(const Duration(seconds: 5));
           break;
         case 'DELETE':
           response = await http
               .delete(uri, headers: headers)
-              .timeout(const Duration(seconds: 30));
+              .timeout(const Duration(seconds: 5));
           break;
         default:
           return {'error': 'Méthode HTTP inconnue'};
@@ -167,10 +164,16 @@ class ApiService {
   }
 
   static Future<dynamic> get(String endpoint) async {
-    if (offlineMode) {
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) {
       return _offlineGet(endpoint);
     }
-    return _request('GET', endpoint);
+    
+    final response = await _request('GET', endpoint);
+    if (response is Map && response['_connectionFailed'] == true) {
+      return _offlineGet(endpoint);
+    }
+    return response;
   }
 
   static Future<String?> getRaw(String endpoint) async {
@@ -193,19 +196,23 @@ class ApiService {
     Map<String, dynamic> body, {
     bool withAuth = true,
   }) async {
-    if (offlineMode) {
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity.contains(ConnectivityResult.none)) {
       return _offlinePost(endpoint, body);
     }
-    return _request('POST', endpoint, body: body, withAuth: withAuth);
+
+    final response = await _request('POST', endpoint, body: body, withAuth: withAuth);
+    if (response is Map && response['_connectionFailed'] == true) {
+      return _offlinePost(endpoint, body);
+    }
+    return response;
   }
 
   static Future<dynamic> delete(String endpoint) async {
-    if (offlineMode) return null;
     return _request('DELETE', endpoint);
   }
 
   static Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
-    if (offlineMode) return null;
     return _request('PUT', endpoint, body: body);
   }
 

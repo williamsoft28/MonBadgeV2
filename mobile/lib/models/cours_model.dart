@@ -14,6 +14,7 @@ class CoursModel {
   final String enseignantPrenom;
   final String? filiere;
   final String? niveau;
+  final int totalPresents;
 
   CoursModel({
     required this.id,
@@ -31,6 +32,7 @@ class CoursModel {
     required this.enseignantPrenom,
     this.filiere,
     this.niveau,
+    this.totalPresents = 0,
   });
 
   factory CoursModel.fromJson(Map<String, dynamic> json) {
@@ -50,6 +52,7 @@ class CoursModel {
       enseignantPrenom: json['enseignant_prenom'] ?? '',
       filiere: json['filiere'],
       niveau: json['niveau'],
+      totalPresents: json['total_presents'] ?? 0,
     );
   }
 

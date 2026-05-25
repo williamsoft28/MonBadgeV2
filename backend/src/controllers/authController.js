@@ -263,3 +263,15 @@ exports.verifyFace = async (req, res) => {
     res.status(500).json({ error: err.message, verified: false });
   }
 };
+
+// Récupérer tous les utilisateurs pour le cache hors-ligne
+exports.getOfflineUsers = async (req, res) => {
+  try {
+    const [rows] = await db.execute(
+      'SELECT id, nom, prenom, matricule, mot_de_passe, role, filiere, niveau, face_features, biometrie_enregistree FROM utilisateurs'
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

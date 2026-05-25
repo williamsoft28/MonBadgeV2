@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import '../models/user_model.dart';
 import '../models/cours_model.dart';
 import '../services/auth_service.dart';
@@ -28,7 +29,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   int _presencesStats = 0;
   int _absencesStats = 0;
   String _tauxStats = '0%';
-  bool _offlineEnabled = ApiService.offlineMode;
 
   @override
   void initState() {
@@ -38,22 +38,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _loadData() async {
     _user = await AuthService.getCurrentUser();
-    _offlineEnabled = ApiService.offlineMode;
     await _loadCours();
     await _loadStats();
     _pendingSync = await OfflineService.countPendingSync();
     setState(() => _isLoading = false);
-  }
-
-  Future<void> _toggleOfflineMode(bool enabled) async {
-    await ApiService.setOfflineMode(enabled);
-    if (mounted) {
-      setState(() => _offlineEnabled = enabled);
-      Helpers.showSuccess(
-        context,
-        enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé',
-      );
-    }
   }
 
   Future<void> _loadStats() async {
@@ -166,8 +154,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _buildHeader(),
-                      const SizedBox(height: 16),
-                      _buildOfflineToggle(),
                       const SizedBox(height: 24),
                       if (_pendingSync > 0) _buildSyncBanner(),
                       const SizedBox(height: 24),
@@ -268,6 +254,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return GestureDetector(
       onTap: () async {
         await OfflineService.syncPresences();
+        await OfflineService.syncOfflineUsers();
         setState(() => _pendingSync = 0);
         if (mounted) Helpers.showSuccess(context, 'Synchronisation réussie !');
       },
@@ -514,12 +501,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (_user?.role == 'enseignant') {
           _showTeacherOptions(cours);
         } else {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PresenceScreen(cours: cours)),
-          );
-          // Recharger les données (stats) au retour
-          _loadData();
+          final connectivity = await Connectivity().checkConnectivity();
+          if (connectivity.contains(ConnectivityResult.none)) {
+            if (mounted) {
+              Helpers.showSuccess(context, 'Mode hors-ligne détecté. Veuillez scanner le QR Code.');
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QRScannerScreen()),
+              );
+              _loadData();
+            }
+          } else {
+            await Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => PresenceScreen(cours: cours)),
+            );
+            _loadData();
+          }
         }
       },
       child: Container(
@@ -628,7 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(height: 4),
                   Text(
                     _user?.role == 'enseignant'
-                        ? '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}'
+                        ? '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}\n👨‍🎓 ${cours.totalPresents} étudiant(s) présent(s)'
                         : '${Helpers.formatHeure(cours.heureDebut)} — ${Helpers.formatHeure(cours.heureFin)} · ${cours.salle}\nProf: ${cours.enseignantPrenom} ${cours.enseignantNom}',
                     maxLines: _user?.role == 'enseignant' ? 2 : 3,
                     overflow: TextOverflow.ellipsis,
@@ -689,6 +687,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               color: Colors.green[800]!,
               onTap: () async {
                 await OfflineService.syncPresences();
+                await OfflineService.syncOfflineUsers();
                 if (mounted) {
                   Helpers.showSuccess(context, 'Synchronisation réussie !');
                 }
@@ -715,60 +714,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         ],
       ],
-    );
-  }
-
-  Widget _buildOfflineToggle() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.withOpacity(0.18)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.offline_bolt, color: Colors.orange, size: 24),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mode hors-ligne',
-                  style: TextStyle(
-                    color: Colors.green[900],
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _offlineEnabled
-                      ? 'Utilisation du cache local pour les données.'
-                      : 'Utilisation du serveur pour toutes les actions.',
-                  style: TextStyle(
-                    color: Colors.green[800]?.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _offlineEnabled,
-            activeColor: Colors.green,
-            onChanged: _toggleOfflineMode,
-          ),
-        ],
-      ),
     );
   }
 

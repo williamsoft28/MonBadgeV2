@@ -1,8 +1,10 @@
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:bcrypt/bcrypt.dart';
 import '../utils/constants.dart';
 import '../models/user_model.dart';
 import 'api_service.dart';
+import 'offline_service.dart';
 
 class AuthService {
   // Connexion
@@ -18,14 +20,33 @@ class AuthService {
       withAuth: false,
     );
 
-    if (response == null) {
-      return {'success': false, 'message': 'Erreur de connexion au serveur'};
-    }
+    if (response == null || response['_connectionFailed'] == true) {
+      // Tentative de connexion hors-ligne
+      final offlineUser = await OfflineService.getOfflineUser(matricule);
+      if (offlineUser != null) {
+        final hashed = offlineUser['mot_de_passe'];
+        final isMatch = BCrypt.checkpw(motDePasse, hashed);
+        if (isMatch) {
+          final userObj = {
+            'id': offlineUser['id'],
+            'nom': offlineUser['nom'],
+            'prenom': offlineUser['prenom'],
+            'matricule': offlineUser['matricule'],
+            'role': offlineUser['role'],
+            'filiere': offlineUser['filiere'],
+            'niveau': offlineUser['niveau'],
+            'biometrie_active': offlineUser['biometrie_enregistree'] == 1 || offlineUser['biometrie_enregistree'] == true,
+          };
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString(Constants.tokenKey, 'offline_token_$matricule');
+          await prefs.setString(Constants.userKey, jsonEncode(userObj));
+          return {'success': true, 'user': userObj};
+        }
+      }
 
-    if (response['_connectionFailed'] == true) {
       return {
         'success': false,
-        'message': response['error'] ?? 'Erreur de connexion au serveur',
+        'message': response?['error'] ?? 'Connexion au serveur impossible et identifiants non trouvés en cache hors-ligne',
       };
     }
 

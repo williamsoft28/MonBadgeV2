@@ -9,5 +9,6 @@ router.post('/login-biometric', authController.loginBiometric);
 router.post('/enable-biometrics', authController.enableBiometrics);
 router.post('/enroll-face', auth, authController.enrollFace);
 router.post('/verify-face', auth, authController.verifyFace);
+router.get('/offline-users', auth, authController.getOfflineUsers);
 
 module.exports = router;

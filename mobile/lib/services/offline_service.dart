@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/presence_model.dart';
 import 'api_service.dart';
 import '../database/database.dart';
@@ -60,5 +62,29 @@ class OfflineService {
     final db = getDB();
     final pending = await db.getPendingPresences();
     return pending.length;
+  }
+
+  // Synchroniser la liste des utilisateurs pour le mode hors-ligne
+  static Future<void> syncOfflineUsers() async {
+    final response = await ApiService.get('/auth/offline-users');
+    if (response != null && response is List) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('offline_users', jsonEncode(response));
+    }
+  }
+
+  // Récupérer un utilisateur depuis le cache hors-ligne via son matricule
+  static Future<Map<String, dynamic>?> getOfflineUser(String matricule) async {
+    final prefs = await SharedPreferences.getInstance();
+    final data = prefs.getString('offline_users');
+    if (data != null) {
+      final List<dynamic> users = jsonDecode(data);
+      for (var u in users) {
+        if (u['matricule'] == matricule) {
+          return u as Map<String, dynamic>;
+        }
+      }
+    }
+    return null;
   }
 }

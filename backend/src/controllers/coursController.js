@@ -67,7 +67,8 @@ exports.getCoursDuJour = async (req, res) => {
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let query = `
-      SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom
+      SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom,
+             (SELECT COUNT(*) FROM presences p WHERE p.cours_id = c.id) AS total_presents
       FROM cours c
       JOIN utilisateurs u ON c.enseignant_id = u.id
       WHERE c.date_cours = ? AND c.est_archive = FALSE

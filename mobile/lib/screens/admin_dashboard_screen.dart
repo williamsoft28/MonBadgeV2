@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/offline_service.dart';
 import '../utils/helpers.dart';
 import 'login_screen.dart';
 import 'admin_users_screen.dart';
@@ -19,7 +20,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
   UserModel? _user;
   Map<String, dynamic> _stats = {};
   bool _isLoading = true;
-  bool _offlineEnabled = ApiService.offlineMode;
 
   @override
   void initState() {
@@ -29,23 +29,19 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
 
   Future<void> _loadData() async {
     _user = await AuthService.getCurrentUser();
-    _offlineEnabled = ApiService.offlineMode;
     final response = await ApiService.get('/admin/stats');
     if (response != null) {
       setState(() => _stats = response);
     }
-    setState(() => _isLoading = false);
-  }
-
-  Future<void> _toggleOfflineMode(bool enabled) async {
-    await ApiService.setOfflineMode(enabled);
-    if (mounted) {
-      setState(() => _offlineEnabled = enabled);
-      Helpers.showSuccess(
-        context,
-        enabled ? 'Mode hors-ligne activé' : 'Mode en ligne activé',
-      );
+    
+    // Télécharge la base de données hors-ligne automatiquement pour l'admin
+    try {
+      await OfflineService.syncOfflineUsers();
+    } catch (e) {
+      // Ignorer l'erreur si pas de connexion
     }
+    
+    setState(() => _isLoading = false);
   }
 
   Future<void> _logout() async {
@@ -77,8 +73,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
                       _buildHeader(),
                       const SizedBox(height: 28),
                       _buildStatsWidget(),
-                      const SizedBox(height: 24),
-                      _buildOfflineToggle(),
                       const SizedBox(height: 28),
                       _buildMenuSection(),
                     ],
@@ -247,62 +241,6 @@ class _AdminDashboardScreenState extends State<AdminDashboardScreen> {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildOfflineToggle() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.green.withOpacity(0.2)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.04),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          const Icon(Icons.offline_bolt, color: Colors.orange, size: 28),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Mode hors-ligne',
-                  style: TextStyle(
-                    color: Colors.green[900],
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _offlineEnabled
-                      ? 'Les données sont servies depuis le cache local.'
-                      : 'Toutes les actions utilisent le serveur.',
-                  style: TextStyle(
-                    color: Colors.green[800]?.withOpacity(0.7),
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _offlineEnabled,
-            activeColor: Colors.green,
-            onChanged: _toggleOfflineMode,
-          ),
-        ],
       ),
     );
   }
