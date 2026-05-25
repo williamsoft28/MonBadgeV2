@@ -698,11 +698,41 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                             ),
                           ),
                           const SizedBox(height: 8),
-                          Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              GestureDetector(
-                                onTap: () {
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  GestureDetector(
+                                    onTap: () => showDialog(
+                                      context: context,
+                                      builder: (_) => AlertDialog(
+                                        backgroundColor: Colors.white,
+                                        title: Text('Réinitialiser la biométrie ?', style: TextStyle(color: Colors.orange[900])),
+                                        content: Text('Ceci obligera ${user.prenom} à ré-enregistrer son visage à la prochaine connexion.'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Annuler', style: TextStyle(color: Colors.grey))),
+                                          TextButton(
+                                            onPressed: () async {
+                                              Navigator.pop(context);
+                                              final response = await ApiService.put('/admin/users/${user.id}/reset-biometrics', {});
+                                              if (response != null) {
+                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Biométrie réinitialisée')));
+                                                _loadUsers();
+                                              }
+                                            },
+                                            child: const Text('Réinitialiser', style: TextStyle(color: Colors.orange)),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      Icons.face_retouching_natural,
+                                      color: Colors.orange.withOpacity(0.7),
+                                      size: 18,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  GestureDetector(
+                                    onTap: () {
                                   _nomController.text = user.nom;
                                   _prenomController.text = user.prenom;
                                   _matriculeController.text = user.matricule;

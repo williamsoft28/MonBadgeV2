@@ -1,62 +1,71 @@
-const faceapi = require('@vladmandic/face-api');
-const { Canvas, Image, ImageData, loadImage } = require('canvas');
-const path = require('path');
+// Seuil de distance euclidienne (plus c'est bas, plus c'est strict)
+const SIMILARITY_THRESHOLD = 10.0; // Facenet L2 norm euclidien threshold par défaut
 
-// Configure face-api to use node-canvas
-faceapi.env.monkeyPatch({ Canvas, Image, ImageData });
-
-let modelsLoaded = false;
-
-const loadModels = async () => {
-  if (modelsLoaded) return;
-  const modelsPath = path.join(__dirname, '../../models');
-  try {
-    await faceapi.nets.ssdMobilenetv1.loadFromDisk(modelsPath);
-    await faceapi.nets.faceLandmark68Net.loadFromDisk(modelsPath);
-    await faceapi.nets.faceRecognitionNet.loadFromDisk(modelsPath);
-    modelsLoaded = true;
-    console.log('✅ Modèles Face-API chargés avec succès');
-  } catch (err) {
-    console.error('❌ Erreur lors du chargement des modèles Face-API:', err);
-  }
+// Initialisation vide (plus besoin de charger les modèles locaux)
+const initFaceApi = async () => {
+  console.log('✅ Biométrie : Les modèles locaux sont désactivés (DeepFace Python utilisé).');
 };
 
+/**
+ * Obtient le descripteur facial (vecteur à 128 dimensions)
+ * via le microservice Python DeepFace.
+ * @param {string} base64Image
+ * @returns {Promise<Float32Array|null>}
+ */
 const getFaceDescriptor = async (base64Image) => {
-  await loadModels();
-  
-  // Clean base64 string
-  const base64Data = base64Image.replace(/^data:image\/\w+;base64,/, "");
-  const buffer = Buffer.from(base64Data, 'base64');
-  
   try {
-    const img = await loadImage(buffer);
+    const response = await fetch('http://127.0.0.1:5000/represent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: base64Image })
+    });
     
-    // Detect single face and get descriptor
-    const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-    if (!detection) {
+    const data = await response.json();
+
+    if (response.ok && data.success && data.embedding) {
+      // Convertir l'array en Float32Array JavaScript
+      return new Float32Array(data.embedding);
+    } else {
+      console.warn(`[DeepFace API] ${data.error || 'Erreur inconnue'}`);
       return null;
     }
-    
-    return detection.descriptor;
-  } catch (err) {
-    console.error('Face descriptor error:', err);
+  } catch (error) {
+    console.error('[DeepFace API] Erreur de communication avec le serveur Python (Est-il démarré sur le port 5000 ?)', error.message);
     return null;
   }
 };
 
+/**
+ * Calcule la distance euclidienne entre deux descripteurs.
+ * (Utilisé par Facenet pour déterminer la similarité)
+ */
 const compareFaces = (descriptor1, descriptor2) => {
   if (!descriptor1 || !descriptor2 || descriptor1.length !== descriptor2.length) {
-    return NaN;
+    return Number.MAX_VALUE;
   }
-  let dist = 0;
+
+  // Calcul de la distance Cosinus (plus performant pour Facenet512)
+  let dotProduct = 0.0;
+  let norm1 = 0.0;
+  let norm2 = 0.0;
+  
   for (let i = 0; i < descriptor1.length; i++) {
-    dist += Math.pow(descriptor1[i] - descriptor2[i], 2);
+    dotProduct += descriptor1[i] * descriptor2[i];
+    norm1 += descriptor1[i] * descriptor1[i];
+    norm2 += descriptor2[i] * descriptor2[i];
   }
-  return Math.sqrt(dist);
+  
+  if (norm1 === 0 || norm2 === 0) return Number.MAX_VALUE;
+  
+  const cosineSimilarity = dotProduct / (Math.sqrt(norm1) * Math.sqrt(norm2));
+  
+  // Retourne la distance cosinus (0 = parfaitement identique, 1 = orthogonal)
+  return Math.max(0, 1 - cosineSimilarity);
 };
 
 module.exports = {
-  loadModels,
+  initFaceApi,
   getFaceDescriptor,
-  compareFaces
+  compareFaces,
+  SIMILARITY_THRESHOLD
 };

@@ -100,10 +100,9 @@ class _PresenceScreenState extends State<PresenceScreen>
       return;
     }
 
-    // Étape GPS (si pas encore fait)
-    if (_cachedPosition == null && _status == 'idle') {
+    // Étape GPS (si pas encore fait ou déjà fait)
+    if (_status == 'idle') {
       if (widget.isOfflineQR) {
-        // En mode QR Code, on by-pass le GPS et on prend une position fictive ou la dernière connue
         _cachedPosition = Position(
           longitude: widget.cours.longitude ?? 0,
           latitude: widget.cours.latitude ?? 0,
@@ -124,16 +123,21 @@ class _PresenceScreenState extends State<PresenceScreen>
         return;
       }
 
-      setState(() {
-        _isLoading = true;
-        _status = 'loading';
-        _statusMessage = 'Vérification de la position...';
-      });
-
-      Position? position = await LocationService.getCurrentPosition();
+      Position? position = _cachedPosition;
+      
       if (position == null) {
-        _setStatus('error', 'Impossible d\'obtenir votre position GPS');
-        return;
+        setState(() {
+          _isLoading = true;
+          _status = 'loading';
+          _statusMessage = 'Vérification de la position...';
+        });
+
+        position = await LocationService.getCurrentPosition();
+        if (position == null) {
+          _setStatus('error', 'Impossible d\'obtenir votre position GPS');
+          return;
+        }
+        _cachedPosition = position;
       }
 
       final dansLaSalle = LocationService.estDansLaSalle(
@@ -148,7 +152,6 @@ class _PresenceScreenState extends State<PresenceScreen>
         return;
       }
 
-      _cachedPosition = position;
       setState(() {
         _isLoading = false;
         _status = 'face_capture';
@@ -162,7 +165,7 @@ class _PresenceScreenState extends State<PresenceScreen>
     if (_status == 'face_capture') {
       setState(() {
         _isLoading = true;
-        _statusMessage = 'Analyse du visage (ML Kit)...';
+        _statusMessage = 'Analyse du visage (DeepFace)...';
       });
 
       final verifyResult = await _faceService.verifyFace();
@@ -357,39 +360,48 @@ class _PresenceScreenState extends State<PresenceScreen>
                   ],
                 ),
               ),
-              const Spacer(),
-              ScaleTransition(
-                scale: _status == 'idle' || _status == 'face_capture'
-                    ? _pulseAnim
-                    : const AlwaysStoppedAnimation(1.0),
-                child: GestureDetector(
-                  onTap: (_isLoading || _status == 'locked') ? null : _pointer,
-                  child: Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _statusColor.withOpacity(0.12),
-                      border: Border.all(
-                        color: _statusColor.withOpacity(0.5),
-                        width: 2,
-                      ),
-                    ),
-                    child: ClipOval(
-                      child: _showCamera && _cameraReady && preview != null
-                          ? CameraPreview(preview)
-                          : Center(
-                              child: _isLoading
-                                  ? CircularProgressIndicator(
-                                      color: _statusColor,
-                                      strokeWidth: 3,
-                                    )
-                                  : Icon(
-                                      _statusIcon,
-                                      color: _statusColor,
-                                      size: 80,
+              const SizedBox(height: 16),
+              Expanded(
+                child: Center(
+                  child: ScaleTransition(
+                    scale: _status == 'idle' || _status == 'face_capture'
+                        ? _pulseAnim
+                        : const AlwaysStoppedAnimation(1.0),
+                    child: GestureDetector(
+                      onTap: (_isLoading || _status == 'locked') ? null : _pointer,
+                      child: AspectRatio(
+                        aspectRatio: 3 / 4,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(24),
+                              child: _showCamera && _cameraReady && preview != null
+                                  ? CameraPreview(preview)
+                                  : Container(
+                                      color: _statusColor.withOpacity(0.12),
+                                      child: Center(
+                                        child: _isLoading
+                                            ? CircularProgressIndicator(
+                                                color: _statusColor,
+                                                strokeWidth: 3,
+                                              )
+                                            : Icon(
+                                                _statusIcon,
+                                                color: _statusColor,
+                                                size: 80,
+                                              ),
+                                      ),
                                     ),
                             ),
+                            if (_showCamera && _cameraReady && preview != null)
+                              CustomPaint(
+                                painter: _FaceOvalPainter(),
+                                child: const SizedBox.expand(),
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -412,30 +424,6 @@ class _PresenceScreenState extends State<PresenceScreen>
                         ? 'Appuyez pour capturer et valider (≥ 80 %)'
                         : '',
                 style: const TextStyle(color: AppTheme.textMuted, fontSize: 13),
-              ),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppTheme.cardBg,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppTheme.accentGreen.withOpacity(0.2),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    _buildStep(Icons.location_on_outlined, 'Géolocalisation GPS', 1),
-                    const SizedBox(height: 12),
-                    _buildStep(
-                      Icons.face_retouching_natural,
-                      'Reconnaissance faciale ML Kit',
-                      2,
-                    ),
-                    const SizedBox(height: 12),
-                    _buildStep(Icons.cloud_done_outlined, 'Enregistrement présence', 3),
-                  ],
-                ),
               ),
               const SizedBox(height: 24),
             ],
@@ -462,4 +450,24 @@ class _PresenceScreenState extends State<PresenceScreen>
       ],
     );
   }
+}
+
+class _FaceOvalPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppTheme.accentGreen.withOpacity(0.8)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3;
+
+    final rect = Rect.fromCenter(
+      center: Offset(size.width / 2, size.height / 2),
+      width: size.width * 0.55,
+      height: size.height * 0.65,
+    );
+    canvas.drawOval(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

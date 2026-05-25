@@ -9,7 +9,7 @@ class Constants {
   ///
   /// Ngrok : relancer `ngrok http 3000` et coller la nouvelle URL ici.
   /// Le backend doit tourner : `cd backend && npm start`
-  static const String defaultBaseUrl = 'https://de3f-102-180-78-168.ngrok-free.app/api';
+  static const String defaultBaseUrl = 'https://1154-102-23-56-160.ngrok-free.app/api';
 
   /// Clé SharedPreferences pour surcharger l'URL sans recompiler.
   static const String apiBaseUrlKey = 'api_base_url';

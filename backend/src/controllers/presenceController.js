@@ -31,26 +31,29 @@ exports.pointerPresence = async (req, res) => {
 
     let faceVerified = false;
 
-    if (faceFeatures && Array.isArray(faceFeatures) && uRows[0].face_features) {
-      const savedFeatures = JSON.parse(uRows[0].face_features);
-      const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
-      faceVerified = faceFeatureService.isMatch(similarity);
-      if (!faceVerified) {
-        const pct = faceFeatureService.toPercent(similarity);
-        return res.status(403).json({
-          error: `❌ Visage non reconnu (${pct}% — minimum 80%)`,
-        });
-      }
-    } else if (faceImageBase64 && uRows[0].face_descriptor) {
+    if (faceImageBase64 && uRows[0].face_descriptor) {
       const savedDescriptor = new Float32Array(JSON.parse(uRows[0].face_descriptor));
       const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
       if (!currentDescriptor) {
         return res.status(403).json({ error: '❌ Impossible de détecter un visage sur la photo fournie.' });
       }
       const faceDistance = faceService.compareFaces(savedDescriptor, currentDescriptor);
-      faceVerified = !isNaN(faceDistance) && faceDistance <= 0.6;
+      faceVerified = !isNaN(faceDistance) && faceDistance <= 0.30; // Seuil pour Facenet512 (Cosinus)
       if (!faceVerified) {
-        return res.status(403).json({ error: '❌ Visage non reconnu ou différent de celui enregistré.' });
+        const simPct = Math.round(Math.max(0, 1 - faceDistance) * 100);
+        return res.status(403).json({ error: `❌ Visage non reconnu (${simPct}%) - distance: ${faceDistance.toFixed(2)}` });
+      }
+    } else if (faceFeatures && Array.isArray(faceFeatures) && uRows[0].face_features) {
+      const savedFeatures = JSON.parse(uRows[0].face_features);
+      const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
+      
+      // On assouplit le seuil ML Kit à 85% (au lieu de 98%) pour éviter les faux rejets
+      faceVerified = similarity >= 0.85;
+      if (!faceVerified) {
+        const pct = faceFeatureService.toPercent(similarity);
+        return res.status(403).json({
+          error: `❌ Visage non reconnu (${pct}% — minimum 85%)`,
+        });
       }
     } else {
       return res.status(403).json({
@@ -73,10 +76,13 @@ exports.pointerPresence = async (req, res) => {
     }
 
     // Vérifier le Timing (Verrouillage du cours)
-    // cours[0].date_cours est un objet Date MySQL, on prend sa string (ex: '2026-05-13')
-    // Pour être sûr du format :
-    const d = new Date(cours[0].date_cours);
-    const dateStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    // cours[0].date_cours est une string (ex: '2026-05-13')
+    const dateStr = typeof cours[0].date_cours === 'string' 
+      ? cours[0].date_cours.split(' ')[0]
+      : (() => {
+          const d = new Date(cours[0].date_cours);
+          return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        })();
     
     const timeDebut = new Date(`${dateStr}T${cours[0].heure_debut}`);
     const timeFin = new Date(`${dateStr}T${cours[0].heure_fin}`);
@@ -181,7 +187,7 @@ exports.syncOffline = async (req, res) => {
         const currentDescriptor = await faceService.getFaceDescriptor(p.faceImageBase64);
         validFace =
           currentDescriptor &&
-          faceService.compareFaces(savedDescriptor, currentDescriptor) <= 0.6;
+          faceService.compareFaces(savedDescriptor, currentDescriptor) <= 0.30;
       }
 
       if (!validFace) continue;
@@ -227,11 +233,20 @@ exports.getStats = async (req, res) => {
         }
       }
 
-      let coursQuery = `SELECT COUNT(*) as total_cours FROM cours WHERE 1=1`;
-      let params = [];
+      const today = new Date();
+      const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+      let coursQuery = `SELECT COUNT(*) as total_cours FROM cours WHERE date_cours <= ?`;
+      let params = [dateStr];
       if (filiere && niveau) {
         coursQuery += ` AND (LOWER(filiere) = LOWER(?) OR filiere IS NULL OR filiere = '') AND (niveau = ? OR niveau IS NULL OR niveau = '')`;
         params.push(filiere, niveau);
+      } else if (filiere) {
+        coursQuery += ` AND (LOWER(filiere) = LOWER(?) OR filiere IS NULL OR filiere = '')`;
+        params.push(filiere);
+      } else if (niveau) {
+        coursQuery += ` AND (niveau = ? OR niveau IS NULL OR niveau = '')`;
+        params.push(niveau);
       }
       
       const [[{ total_cours }]] = await db.execute(coursQuery, params);

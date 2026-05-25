@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,10 +35,27 @@ class MonBadgeApp extends StatelessWidget {
           primary: Colors.green[700]!,
           secondary: Colors.greenAccent[700]!,
           surface: Colors.white,
-          background: const Color(0xFFF8FAF9), // Très léger gris/vert
+          background: Colors.transparent, // Rendu transparent pour le fond
         ),
-        scaffoldBackgroundColor: const Color(0xFFF8FAF9),
+        scaffoldBackgroundColor: Colors.transparent, // Rendu transparent
       ),
+      builder: (context, child) {
+        return Container(
+          decoration: const BoxDecoration(
+            image: DecorationImage(
+              image: AssetImage('assets/images/background.jpg'),
+              fit: BoxFit.cover,
+            ),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 8.0, sigmaY: 8.0),
+            child: Container(
+              color: Colors.white.withOpacity(0.65), // Voile blanc semi-transparent pour lire le texte foncé
+              child: child,
+            ),
+          ),
+        );
+      },
       home: const SplashScreen(),
     );
   }

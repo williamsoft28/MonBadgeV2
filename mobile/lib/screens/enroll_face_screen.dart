@@ -130,7 +130,7 @@ class _EnrollFaceScreenState extends State<EnrollFaceScreen> {
                   const SizedBox(height: 8),
                   Text(
                     'Première connexion — placez votre visage dans le cadre. '
-                    'La détection est locale (ML Kit), l\'enregistrement sécurisé sur le serveur.',
+                    'La détection est rapide, et l\'enregistrement biométrique sécurisé sur le serveur (DeepFace).',
                     style: TextStyle(
                       color: AppTheme.textMuted,
                       fontSize: 14,

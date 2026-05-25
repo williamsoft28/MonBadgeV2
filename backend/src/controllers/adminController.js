@@ -123,3 +123,16 @@ exports.updateUser = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+// Réinitialiser la biométrie
+exports.resetBiometrics = async (req, res) => {
+  try {
+    await db.execute(
+      `UPDATE utilisateurs SET biometrie_enregistree = FALSE, face_features = NULL, face_descriptor = NULL WHERE id = ?`,
+      [req.params.id]
+    );
+    res.json({ message: '✅ Biométrie réinitialisée avec succès' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

@@ -12,6 +12,7 @@ const pool = mysql.createPool({
   port: parseInt(process.env.DB_PORT || '3306'),
   waitForConnections: true,
   connectionLimit: 10,
+  dateStrings: true,
 });
 
 pool.getConnection((err, connection) => {

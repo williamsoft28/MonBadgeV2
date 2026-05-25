@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
@@ -100,8 +101,8 @@ class FaceRecognitionService {
     return features;
   }
 
-  /// Capture une photo et retourne les features du visage détecté.
-  Future<List<double>?> captureAndExtractFeatures() async {
+  /// Capture une photo et retourne les features et l'image base64.
+  Future<Map<String, dynamic>?> captureAndExtractFeatures() async {
     if (_controller == null || !_controller!.value.isInitialized) {
       await initCamera();
     }
@@ -110,32 +111,49 @@ class FaceRecognitionService {
     final inputImage = InputImage.fromFilePath(file.path);
     final faces = await _detector.processImage(inputImage);
 
-    try {
-      await File(file.path).delete();
-    } catch (_) {}
-
-    if (faces.isEmpty) return null;
+    if (faces.isEmpty) {
+      try {
+        await File(file.path).delete();
+      } catch (_) {}
+      return null;
+    }
 
     // Prendre le plus grand visage (le plus proche de la caméra)
     faces.sort(
       (a, b) => (b.boundingBox.width * b.boundingBox.height)
           .compareTo(a.boundingBox.width * a.boundingBox.height),
     );
-    return extractFeatures(faces.first);
+    
+    final features = extractFeatures(faces.first);
+    final bytes = await File(file.path).readAsBytes();
+    final base64Image = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+
+    try {
+      await File(file.path).delete();
+    } catch (_) {}
+
+    return {
+      'features': features,
+      'base64Image': base64Image,
+    };
   }
 
   /// Enregistre le visage à la première connexion.
   Future<FaceRecognitionResult> enrollFace() async {
-    final features = await captureAndExtractFeatures();
-    if (features == null || features.length < 10) {
+    final result = await captureAndExtractFeatures();
+    if (result == null || (result['features'] as List).length < 10) {
       return const FaceRecognitionResult(
         success: false,
         message: 'Aucun visage détecté. Centrez votre visage dans le cadre.',
       );
     }
 
+    final features = result['features'] as List<double>;
+    final base64Image = result['base64Image'] as String;
+
     final response = await ApiService.post('/auth/enroll-face', {
       'faceFeatures': features,
+      'faceImageBase64': base64Image,
     });
 
     if (response != null && response['success'] == true) {
@@ -156,16 +174,20 @@ class FaceRecognitionService {
 
   /// Vérifie le visage au pointage (seuil 80 % côté serveur).
   Future<FaceRecognitionResult> verifyFace() async {
-    final features = await captureAndExtractFeatures();
-    if (features == null || features.length < 10) {
+    final result = await captureAndExtractFeatures();
+    if (result == null || (result['features'] as List).length < 10) {
       return const FaceRecognitionResult(
         success: false,
         message: 'Aucun visage détecté. Réessayez en regardant la caméra.',
       );
     }
 
+    final features = result['features'] as List<double>;
+    final base64Image = result['base64Image'] as String;
+
     final response = await ApiService.post('/auth/verify-face', {
       'faceFeatures': features,
+      'faceImageBase64': base64Image,
     });
 
     if (response != null && response['verified'] == true) {
@@ -180,7 +202,7 @@ class FaceRecognitionService {
     return FaceRecognitionResult(
       success: false,
       message: response?['error'] ??
-          'Visage non reconnu. Similarité insuffisante (minimum 80%).',
+          'Visage non reconnu ou non identique à l\'enregistrement.',
       similarityPercent: (response?['similarity'] as num?)?.toDouble(),
       features: features,
     );

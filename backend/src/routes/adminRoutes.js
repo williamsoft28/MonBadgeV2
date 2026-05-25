@@ -10,5 +10,6 @@ router.delete('/users/:id', auth, role('admin'), adminController.deleteUser);
 router.get('/rapport/cours', auth, role('admin', 'enseignant'), adminController.getRapportCours);
 router.get('/rapport/absences', auth, role('admin', 'enseignant'), adminController.getAbsencesEtudiant);
 router.put('/users/:id', auth, role('admin'), adminController.updateUser);
+router.put('/users/:id/reset-biometrics', auth, role('admin'), adminController.resetBiometrics);
 
 module.exports = router;

@@ -152,7 +152,7 @@ class _LoginScreenState extends State<LoginScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAF9),
+      backgroundColor: Colors.transparent, // Rendu transparent pour le fond global
       body: Stack(
         children: [
           // Animated Background Circles

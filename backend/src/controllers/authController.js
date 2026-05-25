@@ -158,31 +158,37 @@ exports.enableBiometrics = async (req, res) => {
   }
 };
 
-// Enregistrer les features faciales (ML Kit) — première connexion
+// Enregistrer les features faciales (ML Kit) et le descripteur (DeepFace)
 exports.enrollFace = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { faceFeatures } = req.body;
+    const { faceFeatures, faceImageBase64 } = req.body;
 
-    if (!faceFeatures || !Array.isArray(faceFeatures)) {
-      return res.status(400).json({ error: '❌ Features faciales manquantes' });
-    }
-    if (faceFeatures.length < 10) {
-      return res.status(400).json({ error: '❌ Features insuffisantes — visage mal détecté' });
+    if (!faceImageBase64) {
+      return res.status(400).json({ error: '❌ Photo du visage manquante' });
     }
 
-    const featuresString = JSON.stringify(faceFeatures.map(Number));
+    // Obtenir le descripteur depuis DeepFace
+    const descriptor = await faceService.getFaceDescriptor(faceImageBase64);
+    if (!descriptor) {
+      return res.status(400).json({ error: '❌ Aucun visage détecté sur la photo d\'enregistrement' });
+    }
+
+    const descriptorString = JSON.stringify(Array.from(descriptor));
+    const featuresString = (faceFeatures && Array.isArray(faceFeatures)) 
+                            ? JSON.stringify(faceFeatures.map(Number)) 
+                            : null;
 
     await db.execute(
       `UPDATE utilisateurs 
-       SET biometrie_enregistree = TRUE, face_features = ? 
+       SET biometrie_enregistree = TRUE, face_features = ?, face_descriptor = ? 
        WHERE id = ?`,
-      [featuresString, userId]
+      [featuresString, descriptorString, userId]
     );
 
     res.json({
       success: true,
-      message: '✅ Visage enregistré avec succès',
+      message: '✅ Visage enregistré avec succès (DeepFace)',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -193,35 +199,57 @@ exports.enrollFace = async (req, res) => {
 exports.verifyFace = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { faceFeatures } = req.body;
-
-    if (!faceFeatures || !Array.isArray(faceFeatures)) {
-      return res.status(400).json({ error: '❌ Features faciales manquantes', verified: false });
-    }
+    const { faceFeatures, faceImageBase64 } = req.body;
 
     const [rows] = await db.execute(
-      'SELECT face_features, biometrie_enregistree FROM utilisateurs WHERE id = ?',
+      'SELECT face_features, face_descriptor, biometrie_enregistree FROM utilisateurs WHERE id = ?',
       [userId]
     );
 
-    if (rows.length === 0 || !rows[0].face_features) {
+    if (rows.length === 0 || (!rows[0].face_features && !rows[0].face_descriptor)) {
       return res.status(403).json({
         error: '❌ Visage non enregistré. Complétez l\'enregistrement facial.',
         verified: false,
       });
     }
 
-    const savedFeatures = JSON.parse(rows[0].face_features);
-    const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
-    const verified = faceFeatureService.isMatch(similarity);
-    const similarityPercent = faceFeatureService.toPercent(similarity);
+    let verified = false;
+    let similarityPercent = 0;
+    let errorMessage = '';
+
+    if (faceImageBase64 && rows[0].face_descriptor) {
+      const savedDescriptor = new Float32Array(JSON.parse(rows[0].face_descriptor));
+      const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
+      if (!currentDescriptor) {
+        return res.status(403).json({
+          error: '❌ Impossible de détecter un visage sur la photo fournie.',
+          verified: false,
+        });
+      }
+      const distance = faceService.compareFaces(savedDescriptor, currentDescriptor);
+      verified = !isNaN(distance) && distance <= 0.30; // Seuil de distance Cosinus pour Facenet512
+      // Conversion directe en pourcentage de similarité cosinus
+      similarityPercent = Math.round(Math.max(0, 1 - distance) * 100);
+      errorMessage = `❌ Visage non reconnu (${similarityPercent}%) - distance: ${distance.toFixed(2)}`;
+    } else if (faceFeatures && Array.isArray(faceFeatures) && rows[0].face_features) {
+      const savedFeatures = JSON.parse(rows[0].face_features);
+      const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
+      similarityPercent = faceFeatureService.toPercent(similarity);
+      verified = similarity >= 0.85; // Seuil assoupli pour ML Kit
+      errorMessage = `❌ Visage non reconnu (${similarityPercent}% — minimum 85%)`;
+    } else {
+      return res.status(403).json({
+        error: '❌ Visage non enregistré ou features manquantes.',
+        verified: false,
+      });
+    }
 
     if (!verified) {
       return res.status(403).json({
         success: false,
         verified: false,
         similarity: similarityPercent,
-        error: `❌ Visage non reconnu (${similarityPercent}% — minimum 80%)`,
+        error: errorMessage,
       });
     }
 

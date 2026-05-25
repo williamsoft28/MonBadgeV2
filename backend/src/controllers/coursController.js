@@ -3,8 +3,11 @@ const db = require('../config/db');
 // Liste tous les cours
 exports.getAllCours = async (req, res) => {
   try {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+    
     // Auto-archivage des cours passés
-    await db.execute('UPDATE cours SET est_archive = TRUE WHERE date_cours < CURDATE() AND est_archive = FALSE');
+    await db.execute('UPDATE cours SET est_archive = TRUE WHERE date_cours < ? AND est_archive = FALSE', [dateStr]);
 
     let query = `
       SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom 
@@ -33,13 +36,13 @@ exports.getAllCours = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
+        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND LOWER(c.filiere) = LOWER(?)`;
+        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND c.niveau = ?`;
+        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
         params.push(niveau);
       }
     } else if (req.user && req.user.role === 'enseignant') {
@@ -60,13 +63,16 @@ exports.getAllCours = async (req, res) => {
 // Cours d'un étudiant pour aujourd'hui
 exports.getCoursDuJour = async (req, res) => {
   try {
+    const today = new Date();
+    const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
     let query = `
       SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom
       FROM cours c
       JOIN utilisateurs u ON c.enseignant_id = u.id
-      WHERE c.date_cours = CURDATE() AND c.est_archive = FALSE
+      WHERE c.date_cours = ? AND c.est_archive = FALSE
     `;
-    let params = [];
+    let params = [dateStr];
 
     // Filtrer par niveau et filière si c'est un étudiant
     if (req.user && req.user.role === 'etudiant') {
@@ -82,13 +88,13 @@ exports.getCoursDuJour = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
+        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND LOWER(c.filiere) = LOWER(?)`;
+        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND c.niveau = ?`;
+        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
         params.push(niveau);
       }
     } else if (req.user && req.user.role === 'enseignant') {
@@ -151,7 +157,7 @@ exports.updateCours = async (req, res) => {
     
     await db.execute(`
       UPDATE cours 
-      SET nom = ?, enseignant_id = ?, salle = ?, latitude = ?, longitude = ?, rayon_metres = ?, heure_debut = ?, heure_fin = ?, date_cours = ?, filiere = ?, niveau = ?
+      SET nom = ?, enseignant_id = ?, salle = ?, latitude = ?, longitude = ?, rayon_metres = ?, heure_debut = ?, heure_fin = ?, date_cours = ?, filiere = ?, niveau = ?, est_archive = FALSE
       WHERE id = ?
     `, [nom, enseignant_id, salle, latitude, longitude, rayon, heure_debut, heure_fin, date_cours, filiere || null, niveau || null, req.params.id]);
 
