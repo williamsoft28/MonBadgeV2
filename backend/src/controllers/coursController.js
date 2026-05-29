@@ -10,7 +10,7 @@ exports.getAllCours = async (req, res) => {
     await db.execute('UPDATE cours SET est_archive = TRUE WHERE date_cours < ? AND est_archive = FALSE', [dateStr]);
 
     let query = `
-      SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom 
+      SELECT c.*, DATE_FORMAT(c.date_cours, '%Y-%m-%d') AS date_cours, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom 
       FROM cours c
       JOIN utilisateurs u ON c.enseignant_id = u.id
       WHERE 1=1
@@ -36,14 +36,16 @@ exports.getAllCours = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?)`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND c.niveau = ?`;
         params.push(niveau);
+      } else {
+        query += ` AND (c.filiere IS NULL OR c.filiere = '') AND (c.niveau IS NULL OR c.niveau = '')`;
       }
     } else if (req.user && req.user.role === 'enseignant') {
       query += ` AND c.enseignant_id = ?`;
@@ -67,7 +69,7 @@ exports.getCoursDuJour = async (req, res) => {
     const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     let query = `
-      SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom,
+      SELECT c.*, DATE_FORMAT(c.date_cours, '%Y-%m-%d') AS date_cours, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom,
              (SELECT COUNT(*) FROM presences p WHERE p.cours_id = c.id) AS total_presents
       FROM cours c
       JOIN utilisateurs u ON c.enseignant_id = u.id
@@ -89,14 +91,16 @@ exports.getCoursDuJour = async (req, res) => {
       }
 
       if (filiere && niveau) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '') AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?) AND c.niveau = ?`;
         params.push(filiere, niveau);
       } else if (filiere) {
-        query += ` AND (LOWER(c.filiere) = LOWER(?) OR c.filiere IS NULL OR c.filiere = '')`;
+        query += ` AND LOWER(c.filiere) = LOWER(?)`;
         params.push(filiere);
       } else if (niveau) {
-        query += ` AND (c.niveau = ? OR c.niveau IS NULL OR c.niveau = '')`;
+        query += ` AND c.niveau = ?`;
         params.push(niveau);
+      } else {
+        query += ` AND (c.filiere IS NULL OR c.filiere = '') AND (c.niveau IS NULL OR c.niveau = '')`;
       }
     } else if (req.user && req.user.role === 'enseignant') {
       query += ` AND c.enseignant_id = ?`;
@@ -116,7 +120,7 @@ exports.getCoursDuJour = async (req, res) => {
 exports.getCoursById = async (req, res) => {
   try {
     const [rows] = await db.execute(`
-      SELECT c.*, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom
+      SELECT c.*, DATE_FORMAT(c.date_cours, '%Y-%m-%d') AS date_cours, u.nom AS enseignant_nom, u.prenom AS enseignant_prenom
       FROM cours c
       JOIN utilisateurs u ON c.enseignant_id = u.id
       WHERE c.id = ?

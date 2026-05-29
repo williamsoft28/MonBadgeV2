@@ -164,20 +164,26 @@ exports.enrollFace = async (req, res) => {
     const userId = req.user.id;
     const { faceFeatures, faceImageBase64 } = req.body;
 
-    if (!faceImageBase64) {
-      return res.status(400).json({ error: '❌ Photo du visage manquante' });
+    if (!faceImageBase64 && !faceFeatures) {
+      return res.status(400).json({ error: '❌ Données du visage manquantes' });
     }
 
-    // Obtenir le descripteur depuis DeepFace
-    const descriptor = await faceService.getFaceDescriptor(faceImageBase64);
-    if (!descriptor) {
-      return res.status(400).json({ error: '❌ Aucun visage détecté sur la photo d\'enregistrement' });
+    // Obtenir le descripteur depuis DeepFace (optionnel si le serveur Python est éteint)
+    let descriptorString = null;
+    if (faceImageBase64) {
+      const descriptor = await faceService.getFaceDescriptor(faceImageBase64);
+      if (descriptor) {
+        descriptorString = JSON.stringify(Array.from(descriptor));
+      }
     }
 
-    const descriptorString = JSON.stringify(Array.from(descriptor));
     const featuresString = (faceFeatures && Array.isArray(faceFeatures)) 
                             ? JSON.stringify(faceFeatures.map(Number)) 
                             : null;
+
+    if (!descriptorString && !featuresString) {
+      return res.status(400).json({ error: '❌ Aucun visage détecté sur la photo d\'enregistrement' });
+    }
 
     await db.execute(
       `UPDATE utilisateurs 
@@ -188,7 +194,7 @@ exports.enrollFace = async (req, res) => {
 
     res.json({
       success: true,
-      message: '✅ Visage enregistré avec succès (DeepFace)',
+      message: '✅ Visage enregistré avec succès',
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -217,31 +223,34 @@ exports.verifyFace = async (req, res) => {
     let similarityPercent = 0;
     let errorMessage = '';
 
+    // Tentative 1 : DeepFace
     if (faceImageBase64 && rows[0].face_descriptor) {
       const savedDescriptor = new Float32Array(JSON.parse(rows[0].face_descriptor));
       const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
-      if (!currentDescriptor) {
-        return res.status(403).json({
-          error: '❌ Impossible de détecter un visage sur la photo fournie.',
-          verified: false,
-        });
+      if (currentDescriptor) {
+        const distance = faceService.compareFaces(savedDescriptor, currentDescriptor);
+        verified = !isNaN(distance) && distance <= 0.40; // Seuil assoupli à 0.40 pour réduire les faux rejets
+        similarityPercent = Math.round(Math.max(0, 1 - distance) * 100);
+        errorMessage = `❌ Visage non reconnu par DeepFace (${similarityPercent}%)`;
       }
-      const distance = faceService.compareFaces(savedDescriptor, currentDescriptor);
-      verified = !isNaN(distance) && distance <= 0.30; // Seuil de distance Cosinus pour Facenet512
-      // Conversion directe en pourcentage de similarité cosinus
-      similarityPercent = Math.round(Math.max(0, 1 - distance) * 100);
-      errorMessage = `❌ Visage non reconnu (${similarityPercent}%) - distance: ${distance.toFixed(2)}`;
-    } else if (faceFeatures && Array.isArray(faceFeatures) && rows[0].face_features) {
+    }
+
+    // Tentative 2 : ML Kit (Fallback si DeepFace échoue, est éteint, ou inexistant)
+    if (!verified && faceFeatures && Array.isArray(faceFeatures) && rows[0].face_features) {
       const savedFeatures = JSON.parse(rows[0].face_features);
       const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
-      similarityPercent = faceFeatureService.toPercent(similarity);
-      verified = similarity >= 0.85; // Seuil assoupli pour ML Kit
-      errorMessage = `❌ Visage non reconnu (${similarityPercent}% — minimum 85%)`;
-    } else {
-      return res.status(403).json({
-        error: '❌ Visage non enregistré ou features manquantes.',
-        verified: false,
-      });
+      const mlKitSimilarityPercent = faceFeatureService.toPercent(similarity);
+      
+      if (mlKitSimilarityPercent >= 80) { // Seuil abaissé à 80% pour consistance avec le local
+        verified = true;
+        similarityPercent = mlKitSimilarityPercent;
+        errorMessage = '';
+      } else {
+        if (mlKitSimilarityPercent > similarityPercent) {
+          similarityPercent = mlKitSimilarityPercent;
+          errorMessage = `❌ Visage non reconnu (${similarityPercent}% — minimum 80%)`;
+        }
+      }
     }
 
     if (!verified) {
@@ -249,7 +258,7 @@ exports.verifyFace = async (req, res) => {
         success: false,
         verified: false,
         similarity: similarityPercent,
-        error: errorMessage,
+        error: errorMessage || '❌ Visage non enregistré ou non reconnu.',
       });
     }
 

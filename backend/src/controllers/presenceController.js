@@ -29,16 +29,14 @@ exports.pointerPresence = async (req, res) => {
       return res.status(403).json({ error: '❌ Utilisateur introuvable' });
     }
 
-    let faceVerified = false;
-
     if (faceImageBase64 && uRows[0].face_descriptor) {
       const savedDescriptor = new Float32Array(JSON.parse(uRows[0].face_descriptor));
       const currentDescriptor = await faceService.getFaceDescriptor(faceImageBase64);
       if (!currentDescriptor) {
-        return res.status(403).json({ error: '❌ Impossible de détecter un visage sur la photo fournie.' });
+        return res.status(403).json({ error: '❌ Impossible de détecter un visage sur la photo (DeepFace).' });
       }
       const faceDistance = faceService.compareFaces(savedDescriptor, currentDescriptor);
-      faceVerified = !isNaN(faceDistance) && faceDistance <= 0.30; // Seuil pour Facenet512 (Cosinus)
+      let faceVerified = !isNaN(faceDistance) && faceDistance <= 0.40; // Seuil assoupli à 0.40 pour réduire les faux rejets
       if (!faceVerified) {
         const simPct = Math.round(Math.max(0, 1 - faceDistance) * 100);
         return res.status(403).json({ error: `❌ Visage non reconnu (${simPct}%) - distance: ${faceDistance.toFixed(2)}` });
@@ -47,8 +45,8 @@ exports.pointerPresence = async (req, res) => {
       const savedFeatures = JSON.parse(uRows[0].face_features);
       const similarity = faceFeatureService.compareFeatures(savedFeatures, faceFeatures);
       
-      // On assouplit le seuil ML Kit à 85% (au lieu de 98%) pour éviter les faux rejets
-      faceVerified = similarity >= 0.85;
+      // On assouplit le seuil ML Kit à 85% pour éviter les faux rejets
+      let faceVerified = similarity >= 0.85;
       if (!faceVerified) {
         const pct = faceFeatureService.toPercent(similarity);
         return res.status(403).json({
@@ -100,7 +98,9 @@ exports.pointerPresence = async (req, res) => {
     }
 
     // Vérifier si déjà pointé aujourd'hui
-    const today = new Date().toISOString().split('T')[0];
+    const localNow = new Date();
+    const today = `${localNow.getFullYear()}-${String(localNow.getMonth() + 1).padStart(2, '0')}-${String(localNow.getDate()).padStart(2, '0')}`;
+    
     const [dejaPoi] = await db.execute(
       `SELECT * FROM presences 
        WHERE etudiant_id = ? AND cours_id = ? AND date = ?`,

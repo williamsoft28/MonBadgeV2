@@ -199,14 +199,23 @@ class FaceRecognitionService {
         final offlineUser = await OfflineService.getOfflineUser(currentUser.matricule);
         if (offlineUser != null && offlineUser['face_features'] != null) {
           try {
-            final String featuresStr = offlineUser['face_features'];
-            final List<dynamic> parsed = jsonDecode(featuresStr);
+            dynamic rawFeatures = offlineUser['face_features'];
+            List<dynamic> parsed;
+            
+            if (rawFeatures is String) {
+              parsed = jsonDecode(rawFeatures);
+            } else if (rawFeatures is List) {
+              parsed = rawFeatures;
+            } else {
+              throw Exception("Format inattendu pour face_features");
+            }
+            
             final List<double> savedFeatures = parsed.map((e) => (e as num).toDouble()).toList();
             
             final similarity = _compareFeaturesLocal(savedFeatures, features);
             final similarityPercent = (similarity * 100).roundToDouble();
 
-            if (similarity >= 0.85) {
+            if (similarity >= 0.80) {
               return FaceRecognitionResult(
                 success: true,
                 message: 'Validation locale ($similarityPercent%)',
@@ -216,7 +225,7 @@ class FaceRecognitionService {
             } else {
               return FaceRecognitionResult(
                 success: false,
-                message: 'Visage non reconnu (Local: $similarityPercent% - min 85%)',
+                message: 'Visage non reconnu (Local: $similarityPercent% - min 80%)',
                 similarityPercent: similarityPercent,
                 features: features,
               );
@@ -224,7 +233,7 @@ class FaceRecognitionService {
           } catch (e) {
             return FaceRecognitionResult(
               success: false,
-              message: 'Erreur lors de la lecture du visage sauvegardé localement.',
+              message: 'Erreur lors de la lecture du visage sauvegardé localement: $e',
               features: features,
             );
           }
